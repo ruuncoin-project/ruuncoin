@@ -1,7 +1,7 @@
 Ruuncoin integration/staging tree
 ================================
 
-http://www.ruuncoin.org
+http://www.sites.google.com/view/ruuncoin/home
 
 Copyright (c) 2023 Ruuncoin Developers
 
@@ -18,7 +18,7 @@ The rest is the same as Bitcoin.
  - 2016 blocks to retarget difficulty
 
 For more information, as well as an immediately useable, binary version of
-the Ruuncoin client sofware, see http://www.ruuncoin.org.
+the Ruuncoin client sofware, see http://www.sites.google.com/view/ruuncoin/home.
 
 
 Development process
