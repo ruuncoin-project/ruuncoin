@@ -1,5 +1,5 @@
-Ruuncoin integration/staging tree
-================================
+Ruuncoin integration
+====================
 
 WARNING: It works only with Ununtu 16. you can try your luck if you need it in latest ubuntu version
 ====================================================================================================
