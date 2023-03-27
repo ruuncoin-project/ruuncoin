@@ -8,6 +8,9 @@ http://www.sites.google.com/view/ruuncoin/home
 
 Copyright (c) 2023 Ruuncoin Developers
 
+Before running the ruuncoin Blockchain and wallet please stille the required dependices and those are specified in a file called Dependices.txt
+================================================================================================================================================
+
 What is Ruuncoin?
 ----------------
 
