@@ -1,6 +1,9 @@
 Ruuncoin integration/staging tree
 ================================
 
+WARNING: It works only with Ununtu 16. you can try your luck if you need it in latest ubuntu version
+====================================================================================================
+
 http://www.sites.google.com/view/ruuncoin/home
 
 Copyright (c) 2023 Ruuncoin Developers
