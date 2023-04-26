@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include <openssl/ecdsa.h>
 #include <openssl/rand.h>
 #include <openssl/obj_mac.h>
@@ -9,10 +5,10 @@
 #include "key.h"
 
 
-// anonymous namespace with local implementation code (OpenSSL interaction)
+
 namespace {
 
-// Generate a private key from just the secret parameter
+
 int EC_KEY_regenerate_key(EC_KEY *eckey, BIGNUM *priv_key)
 {
     int ok = 0;
@@ -49,9 +45,6 @@ err:
     return(ok);
 }
 
-// Perform ECDSA key recovery (see SEC1 4.1.6) for curves over (mod p)-fields
-// recid selects which key is recovered
-// if check is non-zero, additional checks are performed
 int ECDSA_SIG_recover_key_GFp(EC_KEY *eckey, ECDSA_SIG *ecsig, const unsigned char *msg, int msglen, int recid, int check)
 {
     if (!eckey) return 0;
@@ -123,7 +116,7 @@ err:
     return ret;
 }
 
-// RAII Wrapper around OpenSSL's EC_KEY
+
 class CECKey {
 private:
     EC_KEY *pkey;
@@ -168,8 +161,7 @@ public:
     bool SetPrivKey(const CPrivKey &privkey) {
         const unsigned char* pbegin = &privkey[0];
         if (d2i_ECPrivateKey(&pkey, &pbegin, privkey.size())) {
-            // d2i_ECPrivateKey returns true if parsing succeeds.
-            // This doesn't necessarily mean the key is valid.
+            
             if (EC_KEY_check_key(pkey))
                 return true;
         }
@@ -195,9 +187,9 @@ public:
 
     bool Sign(const uint256 &hash, std::vector<unsigned char>& vchSig) {
         unsigned int nSize = ECDSA_size(pkey);
-        vchSig.resize(nSize); // Make sure it is big enough
+        vchSig.resize(nSize); 
         assert(ECDSA_sign(0, (unsigned char*)&hash, sizeof(hash), &vchSig[0], &nSize, pkey));
-        vchSig.resize(nSize); // Shrink to fit actual size
+        vchSig.resize(nSize);
         return true;
     }
 
@@ -205,19 +197,14 @@ public:
         if (vchSig.empty())
             return false;
 
-        // New versions of OpenSSL will reject non-canonical DER signatures. de/re-serialize first.
+
         unsigned char *norm_der = NULL;
         ECDSA_SIG *norm_sig = ECDSA_SIG_new();
         const unsigned char* sigptr = &vchSig[0];
         assert(norm_sig);
         if (d2i_ECDSA_SIG(&norm_sig, &sigptr, vchSig.size()) == NULL)
         {
-            /* As of OpenSSL 1.0.0p d2i_ECDSA_SIG frees and nulls the pointer on
-             * error. But OpenSSL's own use of this function redundantly frees the
-             * result. As ECDSA_SIG_free(NULL) is a no-op, and in the absence of a
-             * clear contract for the function behaving the same way is more
-             * conservative.
-             */
+            
             ECDSA_SIG_free(norm_sig);
             return false;
         }
@@ -226,7 +213,7 @@ public:
         if (derlen <= 0)
             return false;
 
-        // -1 = error, 0 = bad sig, 1 = good
+        
         bool ret = ECDSA_verify(0, (unsigned char*)&hash, sizeof(hash), norm_der, derlen, pkey) == 1;
         OPENSSL_free(norm_der);
         return ret;
@@ -263,10 +250,7 @@ public:
         return fOk;
     }
 
-    // reconstruct public key from a compact signature
-    // This is only slightly more CPU intensive than just verifying it.
-    // If this function succeeds, the recovered public key is guaranteed to be valid
-    // (the signature is a valid signature of the given data for that key)
+    
     bool Recover(const uint256 &hash, const unsigned char *p64, int rec)
     {
         if (rec<0 || rec>=3)
@@ -280,11 +264,10 @@ public:
     }
 };
 
-}; // end of anonymous namespace
+}; 
 
 bool CKey::Check(const unsigned char *vch) {
-    // Do not convert to OpenSSL's data structures for range-checking keys,
-    // it's easy enough to do directly.
+    
     static const unsigned char vchMax[32] = {
         0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
         0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,

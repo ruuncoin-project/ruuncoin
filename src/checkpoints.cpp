@@ -1,8 +1,4 @@
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-#include <boost/assign/list_of.hpp> // for 'map_list_of()'
+#include <boost/assign/list_of.hpp> 
 #include <boost/foreach.hpp>
 
 #include "checkpoints.h"
@@ -14,11 +10,7 @@ namespace Checkpoints
 {
     typedef std::map<int, uint256> MapCheckpoints;
 
-    // How many times we expect transactions after the last checkpoint to
-    // be slower. This number is a compromise, as it can't be accurate for
-    // every system. When reindexing from a fast disk with a slow CPU, it
-    // can be up to 20, while when downloading from a slow network with a
-    // fast multicore CPU, it won't be much higher than 1.
+    
     static const double fSigcheckVerificationFactor = 5.0;
 
     struct CCheckpointData {
@@ -28,21 +20,17 @@ namespace Checkpoints
         double fTransactionsPerDay;
     };
 
-    // What makes a good checkpoint block?
-    // + Is surrounded by blocks with reasonable timestamps
-    //   (no blocks before with a timestamp after, none after with
-    //    timestamp before)
-    // + Contains no strange transactions
+    
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of
         (  0, uint256("0x1459cc3ac9de6aa4d2944c0a681a28344d9fb254141a813f45c2ad88614fbe85"))
         ;
     static const CCheckpointData data = {
         &mapCheckpoints,
-        1679552479, // * UNIX timestamp of last checkpoint block
-        0,    // * total number of transactions between genesis and last checkpoint
-                    //   (the tx=... number in the SetBestChain debug.log lines)
-        1.0     // * estimated number of transactions per day after checkpoint
+        1679552479, 
+        0,    
+                    
+        1.0     
     };
 
     static MapCheckpoints mapCheckpointsTestnet =
@@ -75,17 +63,16 @@ namespace Checkpoints
         return hash == i->second;
     }
 
-    // Guess how far we are in the verification process at the given block index
+
     double GuessVerificationProgress(CBlockIndex *pindex) {
         if (pindex==NULL)
             return 0.0;
 
         int64 nNow = time(NULL);
 
-        double fWorkBefore = 0.0; // Amount of work done before pindex
-        double fWorkAfter = 0.0;  // Amount of work left after pindex (estimated)
-        // Work is defined as: 1.0 per transaction before the last checkoint, and
-        // fSigcheckVerificationFactor per transaction after.
+        double fWorkBefore = 0.0; 
+        double fWorkAfter = 0.0;  
+        
 
         const CCheckpointData &data = Checkpoints();
 
