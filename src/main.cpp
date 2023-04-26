@@ -1,8 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "alert.h"
 #include "checkpoints.h"
 #include "db.h"
@@ -22,10 +17,6 @@ using namespace boost;
 # error "Ruuncoin cannot be compiled without assertions."
 #endif
 
-//
-// Global state
-//
-
 CCriticalSection cs_setpwalletRegistered;
 set<CWallet*> setpwalletRegistered;
 
@@ -36,14 +27,14 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0x1459cc3ac9de6aa4d2944c0a681a28344d9fb254141a813f45c2ad88614fbe85");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Ruuncoin: starting difficulty is 1 / 2^12
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); 
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
-set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
+set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; 
 int64 nTimeBestReceived = 0;
 int nScriptCheckThreads = 0;
 bool fImporting = false;
@@ -52,12 +43,12 @@ bool fBenchmark = false;
 bool fTxIndex = false;
 unsigned int nCoinCacheSize = 5000;
 
-/** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */
+
 int64 CTransaction::nMinTxFee = 100000;
-/** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
+
 int64 CTransaction::nMinRelayTxFee = 100000;
 
-CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
+CMedianFilter<int> cPeerBlockCounts(8, 0); 
 
 map<uint256, CBlock*> mapOrphanBlocks;
 multimap<uint256, CBlock*> mapOrphanBlocksByPrev;
@@ -65,7 +56,7 @@ multimap<uint256, CBlock*> mapOrphanBlocksByPrev;
 map<uint256, CTransaction> mapOrphanTransactions;
 map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 
-// Constant stuff for coinbase transactions we create:
+
 CScript COINBASE_FLAGS;
 
 const string strMessageMagic = "Ruuncoin Signed Message:\n";
@@ -73,17 +64,9 @@ const string strMessageMagic = "Ruuncoin Signed Message:\n";
 double dHashesPerSec = 0.0;
 int64 nHPSTimerStart = 0;
 
-// Settings
+
 int64 nTransactionFee = 0;
 int64 nMinimumInputValue = DUST_HARD_LIMIT;
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// dispatching functions
-//
-
-// These functions dispatch to one or all registered wallets
 
 
 void RegisterWallet(CWallet* pwalletIn)
@@ -102,7 +85,7 @@ void UnregisterWallet(CWallet* pwalletIn)
     }
 }
 
-// get the wallet transaction with the given hash (if it exists)
+
 bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
@@ -111,49 +94,49 @@ bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
     return false;
 }
 
-// erases transaction with the given hash from all wallets
+
 void static EraseFromWallets(uint256 hash)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->EraseFromWallet(hash);
 }
 
-// make sure all wallets know about the given transaction, in the given block
+
 void SyncWithWallets(const uint256 &hash, const CTransaction& tx, const CBlock* pblock, bool fUpdate)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->AddToWalletIfInvolvingMe(hash, tx, pblock, fUpdate);
 }
 
-// notify wallets about a new best chain
+
 void static SetBestChain(const CBlockLocator& loc)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->SetBestChain(loc);
 }
 
-// notify wallets about an updated transaction
+
 void static UpdatedTransaction(const uint256& hashTx)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->UpdatedTransaction(hashTx);
 }
 
-// dump all wallets
+
 void static PrintWallets(const CBlock& block)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->PrintWallet(block);
 }
 
-// notify wallets about an incoming inventory (for request counts)
+
 void static Inventory(const uint256& hash)
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->Inventory(hash);
 }
 
-// ask wallets to resend their transactions
+
 void static ResendWalletTransactions()
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
@@ -161,15 +144,6 @@ void static ResendWalletTransactions()
 }
 
 
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// CCoinsView implementations
-//
 
 bool CCoinsView::GetCoins(const uint256 &txid, CCoins &coins) { return false; }
 bool CCoinsView::SetCoins(const uint256 &txid, const CCoins &coins) { return false; }
@@ -260,8 +234,7 @@ unsigned int CCoinsViewCache::GetCacheSize() {
     return cacheCoins.size();
 }
 
-/** CCoinsView that brings transactions from a memorypool into view.
-    It does not check for spendings by memory pool transactions. */
+
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView &baseIn, CTxMemPool &mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
 
 bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) {
@@ -282,10 +255,6 @@ bool CCoinsViewMemPool::HaveCoins(const uint256 &txid) {
 CCoinsViewCache *pcoinsTip = NULL;
 CBlockTreeDB *pblocktree = NULL;
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// mapOrphanTransactions
-//
 
 bool AddOrphanTx(const CTransaction& tx)
 {
@@ -293,13 +262,7 @@ bool AddOrphanTx(const CTransaction& tx)
     if (mapOrphanTransactions.count(hash))
         return false;
 
-    // Ignore big transactions, to avoid a
-    // send-big-orphans memory exhaustion attack. If a peer has a legitimate
-    // large transaction with a missing parent then we assume
-    // it will rebroadcast it later, after the parent transaction(s)
-    // have been mined or received.
-    // 10,000 orphans, each of which is at most 5,000 bytes big is
-    // at most 500 megabytes of orphans:
+   
     unsigned int sz = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
     if (sz > 5000)
     {
@@ -338,7 +301,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
     unsigned int nEvicted = 0;
     while (mapOrphanTransactions.size() > nMaxOrphans)
     {
-        // Evict a random orphan:
+
         uint256 randomhash = GetRandHash();
         map<uint256, CTransaction>::iterator it = mapOrphanTransactions.lower_bound(randomhash);
         if (it == mapOrphanTransactions.end())
@@ -350,20 +313,9 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 }
 
 
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// CTransaction / CTxOut
-//
-
 bool CTxOut::IsDust() const
 {
-    // Ruuncoin: IsDust() detection disabled, allows any valid dust to be relayed.
-    // The fees imposed on each dust txo is considered sufficient spam deterrant. 
+    
     return false;
 }
 
@@ -379,10 +331,7 @@ bool CTransaction::IsStandard(string& strReason) const
         return false;
     }
 
-    // Extremely large transactions with lots of inputs can cost the network
-    // almost as much to process as they cost the sender in fees, because
-    // computing signature hashes is O(ninputs*txsize). Limiting transactions
-    // to MAX_STANDARD_TX_SIZE mitigates CPU exhaustion attacks.
+    
     unsigned int sz = this->GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
     if (sz >= MAX_STANDARD_TX_SIZE) {
         strReason = "tx-size";
@@ -391,9 +340,7 @@ bool CTransaction::IsStandard(string& strReason) const
 
     BOOST_FOREACH(const CTxIn& txin, vin)
     {
-        // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
-        // pay-to-script-hash, which is 3 ~80-byte signatures, 3
-        // ~65-byte public keys, plus a few script ops.
+        
         if (txin.scriptSig.size() > 500) {
             strReason = "scriptsig-size";
             return false;
@@ -420,21 +367,10 @@ bool CTransaction::IsStandard(string& strReason) const
     return true;
 }
 
-//
-// Check transaction inputs, and make sure any
-// pay-to-script-hash transactions are evaluating IsStandard scripts
-//
-// Why bother? To avoid denial-of-service attacks; an attacker
-// can submit a standard HASH... OP_EQUAL transaction,
-// which will get accepted into blocks. The redemption
-// script can be anything; an attacker could use a very
-// expensive-to-check-upon-redemption script like:
-//   DUP CHECKSIG DROP ... repeated 100 times... OP_1
-//
 bool CTransaction::AreInputsStandard(CCoinsViewCache& mapInputs) const
 {
     if (IsCoinBase())
-        return true; // Coinbases don't use vin normally
+        return true; 
 
     for (unsigned int i = 0; i < vin.size(); i++)
     {
@@ -442,7 +378,7 @@ bool CTransaction::AreInputsStandard(CCoinsViewCache& mapInputs) const
 
         vector<vector<unsigned char> > vSolutions;
         txnouttype whichType;
-        // get the scriptPubKey corresponding to this input:
+       
         const CScript& prevScript = prev.scriptPubKey;
         if (!Solver(prevScript, whichType, vSolutions))
             return false;
@@ -450,11 +386,6 @@ bool CTransaction::AreInputsStandard(CCoinsViewCache& mapInputs) const
         if (nArgsExpected < 0)
             return false;
 
-        // Transactions with extra stuff in their scriptSigs are
-        // non-standard. Note that this EvalScript() call will
-        // be quick, because if there are any operations
-        // beside "push data" in the scriptSig the
-        // IsStandard() call returns false
         vector<vector<unsigned char> > stack;
         if (!EvalScript(stack, vin[i].scriptSig, *this, i, false, 0))
             return false;
@@ -517,10 +448,10 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     }
 
     if (pblock) {
-        // Update the tx's hashBlock
+
         hashBlock = pblock->GetHash();
 
-        // Locate the transaction
+
         for (nIndex = 0; nIndex < (int)pblock->vtx.size(); nIndex++)
             if (pblock->vtx[nIndex] == *(CTransaction*)this)
                 break;
@@ -532,11 +463,11 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
             return 0;
         }
 
-        // Fill in merkle branch
+
         vMerkleBranch = pblock->GetMerkleBranch(nIndex);
     }
 
-    // Is the tx in a block that's in the main chain
+
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi == mapBlockIndex.end())
         return 0;
@@ -555,16 +486,16 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 bool CTransaction::CheckTransaction(CValidationState &state) const
 {
-    // Basic checks that don't depend on any context
+
     if (vin.empty())
         return state.DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
     if (vout.empty())
         return state.DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
-    // Size limits
+
     if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return state.DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
-    // Check for negative or overflow output values
+
     int64 nValueOut = 0;
     BOOST_FOREACH(const CTxOut& txout, vout)
     {
@@ -577,7 +508,7 @@ bool CTransaction::CheckTransaction(CValidationState &state) const
             return state.DoS(100, error("CTransaction::CheckTransaction() : txout total out of range"));
     }
 
-    // Check for duplicate inputs
+
     set<COutPoint> vInOutPoints;
     BOOST_FOREACH(const CTxIn& txin, vin)
     {

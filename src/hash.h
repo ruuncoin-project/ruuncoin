@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_HASH_H
 #define BITCOIN_HASH_H
 
@@ -45,7 +41,7 @@ public:
         return (*this);
     }
 
-    // invalidates the object
+
     uint256 GetHash() {
         uint256 hash1;
         SHA256_Final((unsigned char*)&hash1, &ctx);
@@ -56,7 +52,7 @@ public:
 
     template<typename T>
     CHashWriter& operator<<(const T& obj) {
-        // Serialize to this stream
+
         ::Serialize(*this, obj, nType, nVersion);
         return (*this);
     }

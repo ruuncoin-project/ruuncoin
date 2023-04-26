@@ -1,8 +1,3 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "init.h"
 #include "util.h"
 #include "sync.h"
@@ -32,7 +27,7 @@ using namespace json_spirit;
 
 static std::string strRPCUserColonPass;
 
-// These are created by StartRPCThreads, destroyed in StopRPCThreads
+
 static asio::io_service* rpc_io_service = NULL;
 static ssl::context* rpc_ssl_context = NULL;
 static boost::thread_group* rpc_worker_group = NULL;
@@ -118,9 +113,7 @@ std::string HexBits(unsigned int nBits)
 
 
 
-///
-/// Note: This interface may still be subject to change.
-///
+
 
 string CRPCTable::help(string strCommand) const
 {
@@ -130,7 +123,7 @@ string CRPCTable::help(string strCommand) const
     {
         const CRPCCommand *pcmd = mi->second;
         string strMethod = mi->first;
-        // We already filter duplicates, but these deprecated screw up the sort order
+
         if (strMethod.find("label") != string::npos)
             continue;
         if (strCommand != "" && strMethod != strCommand)
@@ -147,7 +140,7 @@ string CRPCTable::help(string strCommand) const
         }
         catch (std::exception& e)
         {
-            // Help text is returned in an exception
+
             string strHelp = string(e.what());
             if (strCommand == "")
                 if (strHelp.find('\n') != string::npos)
@@ -178,21 +171,18 @@ Value help(const Array& params, bool fHelp)
 
 Value stop(const Array& params, bool fHelp)
 {
-    // Accept the deprecated and ignored 'detach' boolean argument
+
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "stop\n"
             "Stop Ruuncoin server.");
-    // Shutdown will take long enough that the response should get back
+
     StartShutdown();
     return "Ruuncoin server stopping";
 }
 
 
 
-//
-// Call Table
-//
 
 
 static const CRPCCommand vRPCCommands[] =
@@ -288,12 +278,7 @@ const CRPCCommand *CRPCTable::operator[](string name) const
     return (*it).second;
 }
 
-//
-// HTTP protocol
-//
-// This ain't Apache.  We're just using HTTP header for the length field
-// and to be compatible with other JSON-RPC implementations.
-//
+
 
 string HTTPPost(const string& strMsg, const map<string,string>& mapRequestHeaders)
 {
@@ -319,7 +304,7 @@ string rfc1123Time()
     time(&now);
     struct tm* now_gmt = gmtime(&now);
     string locale(setlocale(LC_TIME, NULL));
-    setlocale(LC_TIME, "C"); // we want POSIX (aka "C") weekday/month strings
+    setlocale(LC_TIME, "C"); 
     strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S +0000", now_gmt);
     setlocale(LC_TIME, locale.c_str());
     return string(buffer);
@@ -375,23 +360,23 @@ bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
     string str;
     getline(stream, str);
 
-    // HTTP request line is space-delimited
+
     vector<string> vWords;
     boost::split(vWords, str, boost::is_any_of(" "));
     if (vWords.size() < 2)
         return false;
 
-    // HTTP methods permitted: GET, POST
+
     http_method = vWords[0];
     if (http_method != "GET" && http_method != "POST")
         return false;
 
-    // HTTP URI must be an absolute path, relative to current host
+
     http_uri = vWords[1];
     if (http_uri.size() == 0 || http_uri[0] != '/')
         return false;
 
-    // parse proto, if present
+
     string strProto = "";
     if (vWords.size() > 2)
         strProto = vWords[2];
@@ -451,12 +436,12 @@ int ReadHTTPMessage(std::basic_istream<char>& stream, map<string,
     mapHeadersRet.clear();
     strMessageRet = "";
 
-    // Read header
+
     int nLen = ReadHTTPHeaders(stream, mapHeadersRet);
     if (nLen < 0 || nLen > (int)MAX_SIZE)
         return HTTP_INTERNAL_SERVER_ERROR;
 
-    // Read message
+
     if (nLen > 0)
     {
         vector<char> vch(nLen);
@@ -487,15 +472,7 @@ bool HTTPAuthorized(map<string, string>& mapHeaders)
     return TimingResistantEqual(strUserPass, strRPCUserColonPass);
 }
 
-//
-// JSON-RPC protocol.  Bitcoin speaks version 1.0 for maximum compatibility,
-// but uses JSON-RPC 1.1/2.0 standards for parts of the 1.0 standard that were
-// unspecified (HTTP errors and contents of 'error').
-//
-// 1.0 spec: http://json-rpc.org/wiki/specification
-// 1.2 spec: http://groups.google.com/group/json-rpc/web/json-rpc-over-http
-// http://www.codeproject.com/KB/recipes/JSON_Spirit.aspx
-//
+
 
 string JSONRPCRequest(const string& strMethod, const Array& params, const Value& id)
 {
@@ -526,7 +503,7 @@ string JSONRPCReply(const Value& result, const Value& error, const Value& id)
 
 void ErrorReply(std::ostream& stream, const Object& objError, const Value& id)
 {
-    // Send error reply from json-rpc error object
+
     int nStatus = HTTP_INTERNAL_SERVER_ERROR;
     int code = find_value(objError, "code").get_int();
     if (code == RPC_INVALID_REQUEST) nStatus = HTTP_BAD_REQUEST;
@@ -537,7 +514,7 @@ void ErrorReply(std::ostream& stream, const Object& objError, const Value& id)
 
 bool ClientAllowed(const boost::asio::ip::address& address)
 {
-    // Make sure that IPv4-compatible and IPv4-mapped IPv6 addresses are treated as IPv4 addresses
+
     if (address.is_v6()
      && (address.to_v6().is_v4_compatible()
       || address.to_v6().is_v4_mapped()))
@@ -546,7 +523,7 @@ bool ClientAllowed(const boost::asio::ip::address& address)
     if (address == asio::ip::address_v4::loopback()
      || address == asio::ip::address_v6::loopback()
      || (address.is_v4()
-         // Check whether IPv4 addresses match 127.0.0.0/8 (loopback subnet)
+
       && (address.to_v4().to_ulong() & 0xff000000) == 0x7f000000))
         return true;
 
@@ -558,9 +535,7 @@ bool ClientAllowed(const boost::asio::ip::address& address)
     return false;
 }
 
-//
-// IOStream device that speaks SSL but can also speak non-SSL
-//
+
 template <typename Protocol>
 class SSLIOStreamDevice : public iostreams::device<iostreams::bidirectional> {
 public:
@@ -578,13 +553,13 @@ public:
     }
     std::streamsize read(char* s, std::streamsize n)
     {
-        handshake(ssl::stream_base::server); // HTTPS servers read first
+        handshake(ssl::stream_base::server); 
         if (fUseSSL) return stream.read_some(asio::buffer(s, n));
         return stream.next_layer().read_some(asio::buffer(s, n));
     }
     std::streamsize write(const char* s, std::streamsize n)
     {
-        handshake(ssl::stream_base::client); // HTTPS clients write first
+        handshake(ssl::stream_base::client); 
         if (fUseSSL) return asio::write(stream, asio::buffer(s, n));
         return asio::write(stream.next_layer(), asio::buffer(s, n));
     }
@@ -660,7 +635,7 @@ private:
 
 void ServiceConnection(AcceptedConnection *conn);
 
-// Forward declaration required for RPCListen
+
 template <typename Protocol, typename SocketAcceptorService>
 static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketAcceptorService> > acceptor,
                              ssl::context& context,
@@ -668,15 +643,13 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, 
                              AcceptedConnection* conn,
                              const boost::system::error_code& error);
 
-/**
- * Sets up I/O resources to accept and handle a new connection.
- */
+
 template <typename Protocol, typename SocketAcceptorService>
 static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketAcceptorService> > acceptor,
                    ssl::context& context,
                    const bool fUseSSL)
 {
-    // Accept connection
+
     AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL);
 
     acceptor->async_accept(
@@ -690,9 +663,7 @@ static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketA
                 boost::asio::placeholders::error));
 }
 
-/**
- * Accept and handle incoming connection.
- */
+
 template <typename Protocol, typename SocketAcceptorService>
 static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketAcceptorService> > acceptor,
                              ssl::context& context,
@@ -700,24 +671,22 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, 
                              AcceptedConnection* conn,
                              const boost::system::error_code& error)
 {
-    // Immediately start accepting new connections, except when we're cancelled or our socket is closed.
+
     if (error != asio::error::operation_aborted && acceptor->is_open())
         RPCListen(acceptor, context, fUseSSL);
 
     AcceptedConnectionImpl<ip::tcp>* tcp_conn = dynamic_cast< AcceptedConnectionImpl<ip::tcp>* >(conn);
 
-    // TODO: Actually handle errors
+
     if (error)
     {
         delete conn;
     }
 
-    // Restrict callers by IP.  It is important to
-    // do this before starting client thread, to filter out
-    // certain DoS and misbehaving clients.
+    
     else if (tcp_conn && !ClientAllowed(tcp_conn->peer.address()))
     {
-        // Only send a 403 if we're not using SSL to prevent a DoS during the SSL handshake.
+
         if (!fUseSSL)
             conn->stream() << HTTPReply(HTTP_FORBIDDEN, "", false) << std::flush;
         delete conn;
@@ -785,7 +754,7 @@ void StartRPCThreads()
         SSL_CTX_set_cipher_list(rpc_ssl_context->impl(), strCiphers.c_str());
     }
 
-    // Try a dual IPv6/IPv4 socket, falling back to separate IPv4 and IPv6 sockets
+
     const bool loopback = !mapArgs.count("-rpcallowip");
     asio::ip::address bindAddress = loopback ? asio::ip::address_v6::loopback() : asio::ip::address_v6::any();
     ip::tcp::endpoint endpoint(bindAddress, GetArg("-rpcport", GetDefaultRPCPort()));
@@ -799,7 +768,7 @@ void StartRPCThreads()
         acceptor->open(endpoint.protocol());
         acceptor->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
-        // Try making the socket dual IPv6/IPv4 (if listening on the "any" address)
+
         acceptor->set_option(boost::asio::ip::v6_only(loopback), v6_only_error);
 
         acceptor->bind(endpoint);
@@ -815,7 +784,7 @@ void StartRPCThreads()
     }
 
     try {
-        // If dual IPv6/IPv4 failed (or we're opening loopback interfaces only), open IPv4 separately
+
         if (!fListening || loopback || v6_only_error)
         {
             bindAddress = loopback ? asio::ip::address_v4::loopback() : asio::ip::address_v4::any();
@@ -873,15 +842,15 @@ public:
 
 void JSONRequest::parse(const Value& valRequest)
 {
-    // Parse request
+
     if (valRequest.type() != obj_type)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Invalid Request object");
     const Object& request = valRequest.get_obj();
 
-    // Parse id now so errors from here on will have the id
+
     id = find_value(request, "id");
 
-    // Parse method
+
     Value valMethod = find_value(request, "method");
     if (valMethod.type() == null_type)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Missing method");
@@ -891,7 +860,7 @@ void JSONRequest::parse(const Value& valRequest)
     if (strMethod != "getwork" && strMethod != "getworkex" && strMethod != "getblocktemplate")
         printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
-    // Parse params
+
     Value valParams = find_value(request, "params");
     if (valParams.type() == array_type)
         params = valParams.get_array();
@@ -943,11 +912,11 @@ void ServiceConnection(AcceptedConnection *conn)
         map<string, string> mapHeaders;
         string strRequest, strMethod, strURI;
 
-        // Read HTTP request line
+
         if (!ReadHTTPRequestLine(conn->stream(), nProto, strMethod, strURI))
             break;
 
-        // Read HTTP message headers and body
+
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
         if (strURI != "/") {
@@ -955,7 +924,7 @@ void ServiceConnection(AcceptedConnection *conn)
             break;
         }
 
-        // Check authorization
+
         if (mapHeaders.count("authorization") == 0)
         {
             conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
@@ -964,9 +933,7 @@ void ServiceConnection(AcceptedConnection *conn)
         if (!HTTPAuthorized(mapHeaders))
         {
             printf("ThreadRPCServer incorrect password attempt from %s\n", conn->peer_address_to_string().c_str());
-            /* Deter brute-forcing short passwords.
-               If this results in a DoS the user really
-               shouldn't have their RPC port exposed. */
+            
             if (mapArgs["-rpcpassword"].size() < 20)
                 MilliSleep(250);
 
@@ -979,23 +946,23 @@ void ServiceConnection(AcceptedConnection *conn)
         JSONRequest jreq;
         try
         {
-            // Parse request
+
             Value valRequest;
             if (!read_string(strRequest, valRequest))
                 throw JSONRPCError(RPC_PARSE_ERROR, "Parse error");
 
             string strReply;
 
-            // singleton request
+
             if (valRequest.type() == obj_type) {
                 jreq.parse(valRequest);
 
                 Value result = tableRPC.execute(jreq.strMethod, jreq.params);
 
-                // Send reply
+
                 strReply = JSONRPCReply(result, Value::null, jreq.id);
 
-            // array of requests
+
             } else if (valRequest.type() == array_type)
                 strReply = JSONRPCExecBatch(valRequest.get_array());
             else
@@ -1018,14 +985,14 @@ void ServiceConnection(AcceptedConnection *conn)
 
 json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_spirit::Array &params) const
 {
-    // Find method
+
     const CRPCCommand *pcmd = tableRPC[strMethod];
     if (!pcmd)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
     if (pcmd->reqWallet && !pwalletMain)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
 
-    // Observe safe mode
+
     string strWarning = GetWarnings("rpc");
     if (strWarning != "" && !GetBoolArg("-disablesafemode") &&
         !pcmd->okSafeMode)
@@ -1033,7 +1000,7 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
 
     try
     {
-        // Execute
+
         Value result;
         {
             if (pcmd->threadSafe)
@@ -1063,7 +1030,7 @@ Object CallRPC(const string& strMethod, const Array& params)
               "If the file does not exist, create it with owner-readable-only file permissions."),
                 GetConfigFile().string().c_str()));
 
-    // Connect to localhost
+
     bool fUseSSL = GetBoolArg("-rpcssl");
     asio::io_service io_service;
     ssl::context context(io_service, ssl::context::sslv23);
@@ -1074,21 +1041,21 @@ Object CallRPC(const string& strMethod, const Array& params)
     if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", itostr(GetDefaultRPCPort()))))
         throw runtime_error("couldn't connect to server");
 
-    // HTTP basic authentication
+
     string strUserPass64 = EncodeBase64(mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"]);
     map<string, string> mapRequestHeaders;
     mapRequestHeaders["Authorization"] = string("Basic ") + strUserPass64;
 
-    // Send request
+
     string strRequest = JSONRPCRequest(strMethod, params, 1);
     string strPost = HTTPPost(strRequest, mapRequestHeaders);
     stream << strPost << std::flush;
 
-    // Receive HTTP reply status
+
     int nProto = 0;
     int nStatus = ReadHTTPStatus(stream, nProto);
 
-    // Receive HTTP reply message headers and body
+
     map<string, string> mapHeaders;
     string strReply;
     ReadHTTPMessage(stream, mapHeaders, strReply, nProto);
@@ -1100,7 +1067,7 @@ Object CallRPC(const string& strMethod, const Array& params)
     else if (strReply.empty())
         throw runtime_error("no response from server");
 
-    // Parse reply
+
     Value valReply;
     if (!read_string(strReply, valReply))
         throw runtime_error("couldn't parse reply from server");
@@ -1121,7 +1088,7 @@ void ConvertTo(Value& value, bool fAllowNull=false)
         return;
     if (value.type() == str_type)
     {
-        // reinterpret string as unquoted json value
+
         Value value2;
         string strJSON = value.get_str();
         if (!read_string(strJSON, value2))
@@ -1135,7 +1102,7 @@ void ConvertTo(Value& value, bool fAllowNull=false)
     }
 }
 
-// Convert strings to command-specific RPC representation
+
 Array RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams)
 {
     Array params;
@@ -1144,9 +1111,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
 
     int n = params.size();
 
-    //
-    // Special case non-string parameter types
-    //
+    
     if (strMethod == "stop"                   && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "getaddednodeinfo"       && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 0) ConvertTo<bool>(params[0]);
@@ -1207,39 +1172,39 @@ int CommandLineRPC(int argc, char *argv[])
     int nRet = 0;
     try
     {
-        // Skip switches
+
         while (argc > 1 && IsSwitchChar(argv[1][0]))
         {
             argc--;
             argv++;
         }
 
-        // Method
+
         if (argc < 2)
             throw runtime_error("too few parameters");
         string strMethod = argv[1];
 
-        // Parameters default to strings
+
         std::vector<std::string> strParams(&argv[2], &argv[argc]);
         Array params = RPCConvertValues(strMethod, strParams);
 
-        // Execute
+
         Object reply = CallRPC(strMethod, params);
 
-        // Parse reply
+
         const Value& result = find_value(reply, "result");
         const Value& error  = find_value(reply, "error");
 
         if (error.type() != null_type)
         {
-            // Error
+
             strPrint = "error: " + write_string(error, false);
             int code = find_value(error.get_obj(), "code").get_int();
             nRet = abs(code);
         }
         else
         {
-            // Result
+
             if (result.type() == null_type)
                 strPrint = "";
             else if (result.type() == str_type)
@@ -1273,7 +1238,7 @@ int CommandLineRPC(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 #ifdef _MSC_VER
-    // Turn off Microsoft heap dump noise
+
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, CreateFile("NUL", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0));
 #endif

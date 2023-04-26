@@ -1,13 +1,10 @@
-// Copyright (c) 2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_LIMITEDMAP_H
 #define BITCOIN_LIMITEDMAP_H
 
 #include <map>
 #include <deque>
 
-/** STL-like map container that only keeps the N elements with the highest value. */
+
 template <typename K, typename V> class limitedmap
 {
 public:
@@ -59,13 +56,13 @@ public:
                 map.erase(itTarget);
                 return;
             }
-        // Shouldn't ever get here
-        assert(0); //TODO remove me
+
+        assert(0); 
         map.erase(itTarget);
     }
     void update(const_iterator itIn, const mapped_type& v)
     {
-        //TODO: When we switch to C++11, use map.erase(itIn, itIn) to get the non-const iterator
+
         iterator itTarget = map.find(itIn->first);
         if (itTarget == map.end())
             return;
@@ -78,8 +75,8 @@ public:
                 rmap.insert(make_pair(v, itTarget));
                 return;
             }
-        // Shouldn't ever get here
-        assert(0); //TODO remove me
+
+        assert(0); 
         itTarget->second = v;
         rmap.insert(make_pair(v, itTarget));
     }
