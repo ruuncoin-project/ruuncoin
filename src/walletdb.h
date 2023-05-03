@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLETDB_H
 #define BITCOIN_WALLETDB_H
 
@@ -12,7 +8,6 @@ class CKeyPool;
 class CAccount;
 class CAccountingEntry;
 
-/** Error statuses for the wallet database */
 enum DBErrors
 {
     DB_LOAD_OK,
@@ -23,7 +18,6 @@ enum DBErrors
     DB_NEED_REWRITE
 };
 
-/** Access to the wallet database (wallet.dat) */
 class CWalletDB : public CDB
 {
 public:
@@ -121,8 +115,6 @@ public:
         return Erase(std::make_pair(std::string("pool"), nPool));
     }
 
-    // Settings are no longer stored in wallet.dat; these are
-    // used only for backwards compatibility:
     template<typename T>
     bool ReadSetting(const std::string& strKey, T& value)
     {
@@ -160,4 +152,4 @@ public:
     static bool Recover(CDBEnv& dbenv, std::string filename);
 };
 
-#endif // BITCOIN_WALLETDB_H
+#endif

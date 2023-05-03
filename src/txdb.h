@@ -1,14 +1,9 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_TXDB_LEVELDB_H
 #define BITCOIN_TXDB_LEVELDB_H
 
 #include "main.h"
 #include "leveldb.h"
 
-/** CCoinsView backed by the LevelDB coin database (chainstate/) */
 class CCoinsViewDB : public CCoinsView
 {
 protected:
@@ -25,7 +20,6 @@ public:
     bool GetStats(CCoinsStats &stats);
 };
 
-/** Access to the block database (blocks/index/) */
 class CBlockTreeDB : public CLevelDB
 {
 public:
@@ -50,4 +44,4 @@ public:
     bool LoadBlockIndexGuts();
 };
 
-#endif // BITCOIN_TXDB_LEVELDB_H
+#endif

@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_NET_H
 #define BITCOIN_NET_H
 
@@ -27,9 +23,7 @@ class CBlockIndex;
 extern int nBestHeight;
 
 
-/** The maximum number of entries in an 'inv' protocol message */
 static const unsigned int MAX_INV_SZ = 50000;
-/** The maximum number of entries in mapAskFor */
 static const size_t MAPASKFOR_MAX_SZ = MAX_INV_SZ;
 
 inline unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", 5*1000); }
@@ -51,12 +45,12 @@ void SocketSendData(CNode *pnode);
 
 enum
 {
-    LOCAL_NONE,   // unknown
-    LOCAL_IF,     // address a local interface listens on
-    LOCAL_BIND,   // address explicit bound to
-    LOCAL_UPNP,   // address reported by UPnP
-    LOCAL_HTTP,   // address reported by whatismyip.com and similar
-    LOCAL_MANUAL, // address explicitly specified (-externalip=)
+    LOCAL_NONE,
+    LOCAL_IF,
+    LOCAL_BIND,
+    LOCAL_UPNP,
+    LOCAL_HTTP,
+    LOCAL_MANUAL,
 
     LOCAL_MAX
 };
@@ -117,13 +111,13 @@ public:
 
 class CNetMessage {
 public:
-    bool in_data;                   // parsing header (false) or data (true)
+    bool in_data;
 
-    CDataStream hdrbuf;             // partially received header
-    CMessageHeader hdr;             // complete header
+    CDataStream hdrbuf;
+    CMessageHeader hdr;
     unsigned int nHdrPos;
 
-    CDataStream vRecv;              // received message data
+    CDataStream vRecv;
     unsigned int nDataPos;
 
     CNetMessage(int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn) {
@@ -154,16 +148,14 @@ public:
 
 
 
-/** Information about a peer */
 class CNode
 {
 public:
-    // socket
     uint64 nServices;
     SOCKET hSocket;
     CDataStream ssSend;
-    size_t nSendSize; // total size of all vSendMsg entries
-    size_t nSendOffset; // offset inside the first vSendMsg already sent
+    size_t nSendSize;
+    size_t nSendOffset;
     uint64 nSendBytes;
     std::deque<CSerializeData> vSendMsg;
     CCriticalSection cs_vSend;
@@ -183,10 +175,6 @@ public:
     std::string addrName;
     CService addrLocal;
     int nVersion;
-    // strSubVer is whatever byte array we read from the wire. However, this field is intended 
-    // to be printed out, displayed to humans in various forms and so on. So we sanitize it and
-    // store the sanitized version in cleanSubVer. The original should be used when dealing with
-    // the network or wire types and the cleaned string used when displayed or logged.
     std::string strSubVer, cleanSubVer;
     bool fOneShot;
     bool fClient;
@@ -194,10 +182,6 @@ public:
     bool fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
-    // We use fRelayTxes for two purposes -
-    // a) it allows us to not relay tx invs before receiving the peer's version message
-    // b) the peer may tell us in their version message that we should not relay tx invs
-    //    until they have initialized their bloom filter.
     bool fRelayTxes;
     CSemaphoreGrant grantOutbound;
     CCriticalSection cs_filter;
@@ -205,8 +189,6 @@ public:
     int nRefCount;
 protected:
 
-    // Denial-of-service detection/prevention
-    // Key is IP address, value is banned-until-time
     static std::map<CNetAddr, int64> setBanned;
     static CCriticalSection cs_setBanned;
     int nMisbehavior;
@@ -218,13 +200,11 @@ public:
     int nStartingHeight;
     bool fStartSync;
 
-    // flood relay
     std::vector<CAddress> vAddrToSend;
     std::set<CAddress> setAddrKnown;
     bool fGetAddr;
     std::set<uint256> setKnown;
 
-    // inventory based relay
     mruset<CInv> setInventoryKnown;
     std::vector<CInv> vInventoryToSend;
     CCriticalSection cs_inventory;
@@ -247,7 +227,7 @@ public:
         nVersion = 0;
         strSubVer = "";
         fOneShot = false;
-        fClient = false; // set by version message
+        fClient = false;
         fInbound = fInboundIn;
         fNetworkNode = false;
         fSuccessfullyConnected = false;
@@ -266,7 +246,6 @@ public:
         setInventoryKnown.max_size(SendBufferSize() / 1000);
         pfilter = new CBloomFilter();
 
-        // Be shy and don't send version until we hear
         if (hSocket != INVALID_SOCKET && !fInbound)
             PushVersion();
     }
@@ -294,7 +273,6 @@ public:
         return nRefCount;
     }
 
-    // requires LOCK(cs_vRecvMsg)
     unsigned int GetTotalRecvSize()
     {
         unsigned int total = 0;
@@ -303,10 +281,8 @@ public:
         return total;
     }
 
-    // requires LOCK(cs_vRecvMsg)
     bool ReceiveMsgBytes(const char *pch, unsigned int nBytes);
 
-    // requires LOCK(cs_vRecvMsg)
     void SetRecvVersion(int nVersionIn)
     {
         nRecvVersion = nVersionIn;
@@ -334,9 +310,6 @@ public:
 
     void PushAddress(const CAddress& addr)
     {
-        // Known checking here is only to save space from duplicates.
-        // SendMessages will filter it again for knowns that were added
-        // after addresses were pushed.
         if (addr.IsValid() && !setAddrKnown.count(addr))
             vAddrToSend.push_back(addr);
     }
@@ -364,8 +337,6 @@ public:
         if (mapAskFor.size() > MAPASKFOR_MAX_SZ)
             return;
 
-        // We're using mapAskFor as a priority queue,
-        // the key is the earliest time the request can be sent
         int64 nRequestTime;
         limitedmap<CInv, int64>::const_iterator it = mapAlreadyAskedFor.find(inv);
         if (it != mapAlreadyAskedFor.end())
@@ -375,14 +346,12 @@ public:
         if (fDebugNet)
             printf("askfor %s   %"PRI64d" (%s)\n", inv.ToString().c_str(), nRequestTime, DateTimeStrFormat("%H:%M:%S", nRequestTime/1000000).c_str());
 
-        // Make sure not to reuse time indexes to keep things in the same order
         int64 nNow = (GetTime() - 1) * 1000000;
         static int64 nLastTime;
         ++nLastTime;
         nNow = std::max(nNow, nLastTime);
         nLastTime = nNow;
 
-        // Each retry is 2 minutes after the last
         nRequestTime = std::max(nRequestTime + 2 * 60 * 1000000, nNow);
         if (it != mapAlreadyAskedFor.end())
             mapAlreadyAskedFor.update(it, nRequestTime);
@@ -393,7 +362,6 @@ public:
 
 
 
-    // TODO: Document the postcondition of this function.  Is cs_vSend locked?
     void BeginMessage(const char* pszCommand) EXCLUSIVE_LOCK_FUNCTION(cs_vSend)
     {
         ENTER_CRITICAL_SECTION(cs_vSend);
@@ -403,7 +371,6 @@ public:
             printf("sending: %s ", pszCommand);
     }
 
-    // TODO: Document the precondition of this function.  Is cs_vSend locked?
     void AbortMessage() UNLOCK_FUNCTION(cs_vSend)
     {
         ssSend.clear();
@@ -414,7 +381,6 @@ public:
             printf("(aborted)\n");
     }
 
-    // TODO: Document the precondition of this function.  Is cs_vSend locked?
     void EndMessage() UNLOCK_FUNCTION(cs_vSend)
     {
         if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0)
@@ -427,11 +393,9 @@ public:
         if (ssSend.size() == 0)
             return;
 
-        // Set the size
         unsigned int nSize = ssSend.size() - CMessageHeader::HEADER_SIZE;
         memcpy((char*)&ssSend[CMessageHeader::MESSAGE_SIZE_OFFSET], &nSize, sizeof(nSize));
 
-        // Set the checksum
         uint256 hash = Hash(ssSend.begin() + CMessageHeader::HEADER_SIZE, ssSend.end());
         unsigned int nChecksum = 0;
         memcpy(&nChecksum, &hash, sizeof(nChecksum));
@@ -446,7 +410,6 @@ public:
         ssSend.GetAndClear(*it);
         nSendSize += (*it).size();
 
-        // If write queue empty, attempt "optimistic write"
         if (it == vSendMsg.begin())
             SocketSendData(this);
 
@@ -622,23 +585,9 @@ public:
     void Cleanup();
 
 
-    // Denial-of-service detection/prevention
-    // The idea is to detect peers that are behaving
-    // badly and disconnect/ban them, but do it in a
-    // one-coding-mistake-won't-shatter-the-entire-network
-    // way.
-    // IMPORTANT:  There should be nothing I can give a
-    // node that it will forward on that will make that
-    // node's peers drop it. If there is, an attacker
-    // can isolate a node and/or try to split the network.
-    // Dropping a node for sending stuff that is invalid
-    // now but might be valid in a later version is also
-    // dangerous, because it can cause a network split
-    // between nodes running old code and nodes running
-    // new code.
-    static void ClearBanned(); // needed for unit testing
+    static void ClearBanned();
     static bool IsBanned(CNetAddr ip);
-    bool Misbehaving(int howmuch); // 1 == a little, 100 == a lot
+    bool Misbehaving(int howmuch);
     void copyStats(CNodeStats &stats);
 };
 

@@ -1,17 +1,7 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_THREADSAFETY_H
 #define BITCOIN_THREADSAFETY_H
 
 #ifdef __clang__
-// TL;DR Add GUARDED_BY(mutex) to member variables. The others are
-// rarely necessary. Ex: int nFoo GUARDED_BY(cs_foo);
-//
-// See http://clang.llvm.org/docs/LanguageExtensions.html#threadsafety
-// for documentation.  The clang compiler can do advanced static analysis
-// of locking when given the -Wthread-safety option.
 #define LOCKABLE                        __attribute__ ((lockable))
 #define SCOPED_LOCKABLE                 __attribute__ ((scoped_lockable))
 #define GUARDED_BY(x)                   __attribute__ ((guarded_by(x)))
@@ -49,5 +39,5 @@
 #define EXCLUSIVE_LOCKS_REQUIRED(...)
 #define SHARED_LOCKS_REQUIRED(...)
 #define NO_THREAD_SAFETY_ANALYSIS
-#endif  // __GNUC__
-#endif  // BITCOIN_THREADSAFETY_H
+#endif
+#endif

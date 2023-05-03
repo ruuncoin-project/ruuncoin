@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_SYNC_H
 #define BITCOIN_SYNC_H
 
@@ -11,8 +7,6 @@
 #include <boost/thread/condition_variable.hpp>
 #include "threadsafety.h"
 
-// Template mixin that adds -Wthread-safety locking annotations to a
-// subset of the mutex API.
 template <typename PARENT>
 class LOCKABLE AnnotatedMixin : public PARENT
 {
@@ -33,11 +27,8 @@ public:
     }
 };
 
-/** Wrapped boost mutex: supports recursive locking, but no waiting  */
-// TODO: We should move away from using the recursive lock by default.
 typedef AnnotatedMixin<boost::recursive_mutex> CCriticalSection;
 
-/** Wrapped boost mutex: supports waiting but not recursive locking */
 typedef AnnotatedMixin<boost::mutex> CWaitableCriticalSection;
 
 #ifdef DEBUG_LOCKORDER
@@ -52,7 +43,6 @@ void static inline LeaveCritical() {}
 void PrintLockContention(const char* pszName, const char* pszFile, int nLine);
 #endif
 
-/** Wrapper around boost::unique_lock<Mutex> */
 template<typename Mutex>
 class CMutexLock
 {
@@ -156,7 +146,6 @@ public:
     }
 };
 
-/** RAII-style semaphore lock */
 class CSemaphoreGrant
 {
 private:

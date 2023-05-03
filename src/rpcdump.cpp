@@ -1,8 +1,5 @@
-// Copyright (c) 2009-2014 Bitcoin Developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "init.h" // for pwalletMain
+#include "init.h"
 #include "bitcoinrpc.h"
 #include "ui_interface.h"
 #include "base58.h"
@@ -46,7 +43,6 @@ Value importprivkey(const Array& params, bool fHelp)
     if (params.size() > 1)
         strLabel = params[1].get_str();
 
-    // Whether to perform rescan after import
     bool fRescan = true;
     if (params.size() > 2)
         fRescan = params[2].get_bool();

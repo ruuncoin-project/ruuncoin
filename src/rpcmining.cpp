@@ -1,7 +1,3 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "main.h"
 #include "db.h"
@@ -11,9 +7,6 @@
 using namespace json_spirit;
 using namespace std;
 
-// Return average network hashes per second based on the last 'lookup' blocks,
-// or from the last difficulty change if 'lookup' is nonpositive.
-// If 'height' is nonnegative, compute the estimate at the time when a given block was found.
 Value GetNetworkHashPS(int lookup, int height) {
     CBlockIndex *pb = pindexBest;
 
@@ -23,11 +16,9 @@ Value GetNetworkHashPS(int lookup, int height) {
     if (pb == NULL || !pb->nHeight)
         return 0;
 
-    // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
         lookup = pb->nHeight % 2016 + 1;
 
-    // If lookup is larger than chain, then set it to chain length.
     if (lookup > pb->nHeight)
         lookup = pb->nHeight;
 
@@ -41,7 +32,6 @@ Value GetNetworkHashPS(int lookup, int height) {
         maxTime = std::max(time, maxTime);
     }
 
-    // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
     if (minTime == maxTime)
         return 0;
 
@@ -64,8 +54,6 @@ Value getnetworkhashps(const Array& params, bool fHelp)
 }
 
 
-// Key used by getwork/getblocktemplate miners.
-// Allocated in InitRPCMining, free'd in ShutdownRPCMining
 static CReserveKey* pMiningKey = NULL;
 
 void InitRPCMining()
@@ -73,7 +61,6 @@ void InitRPCMining()
     if (!pwalletMain)
         return;
 
-    // getwork/getblocktemplate mining rewards paid here:
     pMiningKey = new CReserveKey(pwalletMain);
 }
 
@@ -177,13 +164,12 @@ Value getworkex(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Ruuncoin is downloading blocks...");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
-    static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
+    static mapNewBlock_t mapNewBlock;
     static vector<CBlockTemplate*> vNewBlockTemplate;
     static CReserveKey reservekey(pwalletMain);
 
     if (params.size() == 0)
     {
-        // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
         static int64 nStart;
@@ -193,44 +179,35 @@ Value getworkex(const Array& params, bool fHelp)
         {
             if (pindexPrev != pindexBest)
             {
-                // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
                 BOOST_FOREACH(CBlockTemplate* pblocktemplate, vNewBlockTemplate)
                     delete pblocktemplate;
                 vNewBlockTemplate.clear();
             }
 
-            // Clear pindexPrev so future getworks make a new block, despite any failures from here on
             pindexPrev = NULL;
 
-            // Store the pindexBest used before CreateNewBlock, to avoid races
             nTransactionsUpdatedLast = nTransactionsUpdated;
             CBlockIndex* pindexPrevNew = pindexBest;
             nStart = GetTime();
 
-            // Create new block
             pblocktemplate = CreateNewBlockWithKey(*pMiningKey);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlockTemplate.push_back(pblocktemplate);
 
-            // Need to update only after we know CreateNewBlock succeeded
             pindexPrev = pindexPrevNew;
         }
-        CBlock* pblock = &pblocktemplate->block; // pointer for convenience
+        CBlock* pblock = &pblocktemplate->block;
 
-        // Update nTime
         pblock->UpdateTime(pindexPrev);
         pblock->nNonce = 0;
 
-        // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
 
-        // Pre-build hash buffers
         char pmidstate[32];
         char pdata[128];
         char phash1[64];
@@ -262,7 +239,6 @@ Value getworkex(const Array& params, bool fHelp)
     }
     else
     {
-        // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
         vector<unsigned char> coinbase;
 
@@ -274,11 +250,9 @@ Value getworkex(const Array& params, bool fHelp)
             
         CBlock* pdata = (CBlock*)&vchData[0];
 
-        // Byte reverse
         for (int i = 0; i < 128/4; i++)
             ((unsigned int*)pdata)[i] = ByteReverse(((unsigned int*)pdata)[i]);
 
-        // Get saved block
         if (!mapNewBlock.count(pdata->hashMerkleRoot))
             return false;
         CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
@@ -304,9 +278,9 @@ Value getwork(const Array& params, bool fHelp)
         throw runtime_error(
             "getwork [data]\n"
             "If [data] is not specified, returns formatted hash data to work on:\n"
-            "  \"midstate\" : precomputed hash state after hashing the first half of the data (DEPRECATED)\n" // deprecated
+            "  \"midstate\" : precomputed hash state after hashing the first half of the data (DEPRECATED)\n"
             "  \"data\" : block data\n"
-            "  \"hash1\" : formatted hash buffer for second hash (DEPRECATED)\n" // deprecated
+            "  \"hash1\" : formatted hash buffer for second hash (DEPRECATED)\n"
             "  \"target\" : little endian hash target\n"
             "If [data] is specified, tries to solve the block and returns true if it was successful.");
 
@@ -317,12 +291,11 @@ Value getwork(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Ruuncoin is downloading blocks...");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
-    static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
+    static mapNewBlock_t mapNewBlock;
     static vector<CBlockTemplate*> vNewBlockTemplate;
 
     if (params.size() == 0)
     {
-        // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
         static int64 nStart;
@@ -332,44 +305,35 @@ Value getwork(const Array& params, bool fHelp)
         {
             if (pindexPrev != pindexBest)
             {
-                // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
                 BOOST_FOREACH(CBlockTemplate* pblocktemplate, vNewBlockTemplate)
                     delete pblocktemplate;
                 vNewBlockTemplate.clear();
             }
 
-            // Clear pindexPrev so future getworks make a new block, despite any failures from here on
             pindexPrev = NULL;
 
-            // Store the pindexBest used before CreateNewBlock, to avoid races
             nTransactionsUpdatedLast = nTransactionsUpdated;
             CBlockIndex* pindexPrevNew = pindexBest;
             nStart = GetTime();
 
-            // Create new block
             pblocktemplate = CreateNewBlockWithKey(*pMiningKey);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlockTemplate.push_back(pblocktemplate);
 
-            // Need to update only after we know CreateNewBlock succeeded
             pindexPrev = pindexPrevNew;
         }
-        CBlock* pblock = &pblocktemplate->block; // pointer for convenience
+        CBlock* pblock = &pblocktemplate->block;
 
-        // Update nTime
         pblock->UpdateTime(pindexPrev);
         pblock->nNonce = 0;
 
-        // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
 
-        // Pre-build hash buffers
         char pmidstate[32];
         char pdata[128];
         char phash1[64];
@@ -378,25 +342,22 @@ Value getwork(const Array& params, bool fHelp)
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
         Object result;
-        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate)))); // deprecated
+        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate))));
         result.push_back(Pair("data",     HexStr(BEGIN(pdata), END(pdata))));
-        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1)))); // deprecated
+        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1))));
         result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
         return result;
     }
     else
     {
-        // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
         if (vchData.size() != 128)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
         CBlock* pdata = (CBlock*)&vchData[0];
 
-        // Byte reverse
         for (int i = 0; i < 128/4; i++)
             ((unsigned int*)pdata)[i] = ByteReverse(((unsigned int*)pdata)[i]);
 
-        // Get saved block
         if (!mapNewBlock.count(pdata->hashMerkleRoot))
             return false;
         CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
@@ -443,7 +404,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
             strMode = modeval.get_str();
         else if (modeval.type() == null_type)
         {
-            /* Do nothing */
         }
         else
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
@@ -458,7 +418,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Ruuncoin is downloading blocks...");
 
-    // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
     static int64 nStart;
@@ -466,15 +425,12 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (pindexPrev != pindexBest ||
         (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5))
     {
-        // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = NULL;
 
-        // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrevNew = pindexBest;
         nStart = GetTime();
 
-        // Create new block
         if(pblocktemplate)
         {
             delete pblocktemplate;
@@ -485,12 +441,10 @@ Value getblocktemplate(const Array& params, bool fHelp)
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
-        // Need to update only after we know CreateNewBlock succeeded
         pindexPrev = pindexPrevNew;
     }
-    CBlock* pblock = &pblocktemplate->block; // pointer for convenience
+    CBlock* pblock = &pblocktemplate->block;
 
-    // Update nTime
     pblock->UpdateTime(pindexPrev);
     pblock->nNonce = 0;
 
@@ -582,7 +536,7 @@ Value submitblock(const Array& params, bool fHelp)
     CValidationState state;
     bool fAccepted = ProcessBlock(state, NULL, &pblock);
     if (!fAccepted)
-        return "rejected"; // TODO: report validation state
+        return "rejected";
 
     return Value::null;
 }

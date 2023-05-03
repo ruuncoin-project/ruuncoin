@@ -1,7 +1,3 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <boost/assign/list_of.hpp>
 
@@ -106,7 +102,6 @@ Value getnewaddress(const Array& params, bool fHelp)
             "If [account] is specified (recommended), it is added to the address book "
             "so payments received with the address will be credited to [account].");
 
-    // Parse the account first so we don't generate a key if there's an error
     string strAccount;
     if (params.size() > 0)
         strAccount = AccountFromValue(params[0]);
@@ -114,7 +109,6 @@ Value getnewaddress(const Array& params, bool fHelp)
     if (!pwalletMain->IsLocked())
         pwalletMain->TopUpKeyPool();
 
-    // Generate a new key that is added to wallet
     CPubKey newKey;
     if (!pwalletMain->GetKeyFromPool(newKey, false))
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
@@ -135,7 +129,6 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
 
     bool bKeyUsed = false;
 
-    // Check if the current key has been used
     if (account.vchPubKey.IsValid())
     {
         CScript scriptPubKey;
@@ -151,7 +144,6 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
         }
     }
 
-    // Generate a new key
     if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
     {
         if (!pwalletMain->GetKeyFromPool(account.vchPubKey, false))
@@ -171,7 +163,6 @@ Value getaccountaddress(const Array& params, bool fHelp)
             "getaccountaddress <account>\n"
             "Returns the current Ruuncoin address for receiving payments to this account.");
 
-    // Parse the account first so we don't generate a key if there's an error
     string strAccount = AccountFromValue(params[0]);
 
     Value ret;
@@ -199,7 +190,6 @@ Value setaccount(const Array& params, bool fHelp)
     if (params.size() > 1)
         strAccount = AccountFromValue(params[1]);
 
-    // Detect when changing the account of an address that is the 'unused current key' of another account:
     if (pwalletMain->mapAddressBook.count(address.Get()))
     {
         string strOldAccount = pwalletMain->mapAddressBook[address.Get()];
@@ -241,7 +231,6 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
     string strAccount = AccountFromValue(params[0]);
 
-    // Find all addresses that have the given account
     Array ret;
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, string)& item, pwalletMain->mapAddressBook)
     {
@@ -261,10 +250,9 @@ Value setmininput(const Array& params, bool fHelp)
             "setmininput <amount>\n"
             "<amount> is a real and is rounded to the nearest 0.00000001");
 
-    // Amount
     int64 nAmount = 0;
     if (params[0].get_real() != 0.0)
-        nAmount = AmountFromValue(params[0]);        // rejects 0.0 amounts
+        nAmount = AmountFromValue(params[0]);
 
     nMinimumInputValue = nAmount;
     return true;
@@ -283,10 +271,8 @@ Value sendtoaddress(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Ruuncoin address");
 
-    // Amount
     int64 nAmount = AmountFromValue(params[1]);
 
-    // Wallet comments
     CWalletTx wtx;
     if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
         wtx.mapValue["comment"] = params[2].get_str();
@@ -413,7 +399,6 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
             "getreceivedbyaddress <ruuncoinaddress> [minconf=1]\n"
             "Returns the total amount received by <ruuncoinaddress> in transactions with at least [minconf] confirmations.");
 
-    // Bitcoin address
     CBitcoinAddress address = CBitcoinAddress(params[0].get_str());
     CScript scriptPubKey;
     if (!address.IsValid())
@@ -422,12 +407,10 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
     if (!IsMine(*pwalletMain,scriptPubKey))
         return (double)0.0;
 
-    // Minimum confirmations
     int nMinDepth = 1;
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
 
-    // Tally
     int64 nAmount = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
@@ -463,17 +446,14 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
             "getreceivedbyaccount <account> [minconf=1]\n"
             "Returns the total amount received by addresses with <account> in transactions with at least [minconf] confirmations.");
 
-    // Minimum confirmations
     int nMinDepth = 1;
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
 
-    // Get the set of pub keys assigned to account
     string strAccount = AccountFromValue(params[0]);
     set<CTxDestination> setAddress;
     GetAccountAddresses(strAccount, setAddress);
 
-    // Tally
     int64 nAmount = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
@@ -498,7 +478,6 @@ int64 GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinD
 {
     int64 nBalance = 0;
 
-    // Tally wallet transactions
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
@@ -513,7 +492,6 @@ int64 GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinD
         nBalance -= nSent + nFee;
     }
 
-    // Tally internal accounting entries
     nBalance += walletdb.GetAccountCreditDebit(strAccount);
 
     return nBalance;
@@ -542,9 +520,6 @@ Value getbalance(const Array& params, bool fHelp)
         nMinDepth = params[1].get_int();
 
     if (params[0].get_str() == "*") {
-        // Calculate total balance a different way from GetBalance()
-        // (GetBalance() sums up all unspent TxOuts)
-        // getbalance and getbalance '*' 0 should return the same number
         int64 nBalance = 0;
         for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
         {
@@ -588,7 +563,6 @@ Value movecmd(const Array& params, bool fHelp)
     string strTo = AccountFromValue(params[1]);
     int64 nAmount = AmountFromValue(params[2]);
     if (params.size() > 3)
-        // unused parameter, used to be nMinDepth, keep type-checking it though
         (void)params[3].get_int();
     string strComment;
     if (params.size() > 4)
@@ -600,7 +574,6 @@ Value movecmd(const Array& params, bool fHelp)
 
     int64 nNow = GetAdjustedTime();
 
-    // Debit
     CAccountingEntry debit;
     debit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
     debit.strAccount = strFrom;
@@ -610,7 +583,6 @@ Value movecmd(const Array& params, bool fHelp)
     debit.strComment = strComment;
     walletdb.WriteAccountingEntry(debit);
 
-    // Credit
     CAccountingEntry credit;
     credit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
     credit.strAccount = strTo;
@@ -653,12 +625,10 @@ Value sendfrom(const Array& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    // Check funds
     int64 nBalance = GetAccountBalance(strAccount, nMinDepth);
     if (nAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
-    // Send
     string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -710,12 +680,10 @@ Value sendmany(const Array& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    // Check funds
     int64 nBalance = GetAccountBalance(strAccount, nMinDepth);
     if (totalAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
-    // Send
     CReserveKey keyChange(pwalletMain);
     int64 nFeeRequired = 0;
     string strFailReason;
@@ -728,15 +696,11 @@ Value sendmany(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-//
-// Used by addmultisigaddress / createmultisig:
-//
 static CScript _createmultisig(const Array& params)
 {
     int nRequired = params[0].get_int();
     const Array& keys = params[1].get_array();
 
-    // Gather public keys
     if (nRequired < 1)
         throw runtime_error("a multisignature address must require at least one key to redeem");
     if ((int)keys.size() < nRequired)
@@ -749,7 +713,6 @@ static CScript _createmultisig(const Array& params)
     {
         const std::string& ks = keys[i].get_str();
 
-        // Case 1: Ruuncoin address and we have full public key:
         CBitcoinAddress address(ks);
         if (pwalletMain && address.IsValid())
         {
@@ -766,7 +729,6 @@ static CScript _createmultisig(const Array& params)
             pubkeys[i] = vchPubKey;
         }
 
-        // Case 2: hex public key
         else if (IsHex(ks))
         {
             CPubKey vchPubKey(ParseHex(ks));
