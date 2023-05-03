@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLET_H
 #define BITCOIN_WALLET_H
 
@@ -26,19 +22,17 @@ class CReserveKey;
 class COutput;
 class CCoinControl;
 
-/** (client) version numbers for particular wallet features */
 enum WalletFeature
 {
-    FEATURE_BASE = 10500, // the earliest version new wallets supports (only useful for getinfo's clientversion output)
+    FEATURE_BASE = 10500,
 
-    FEATURE_WALLETCRYPT = 40000, // wallet encryption
-    FEATURE_COMPRPUBKEY = 60000, // compressed public keys
+    FEATURE_WALLETCRYPT = 40000,
+    FEATURE_COMPRPUBKEY = 60000,
 
     FEATURE_LATEST = 60000
 };
 
 
-/** A key pool entry */
 class CKeyPool
 {
 public:
@@ -65,9 +59,6 @@ public:
     )
 };
 
-/** A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
- * and provides the ability to create new transactions.
- */
 class CWallet : public CCryptoKeyStore
 {
 private:
@@ -75,10 +66,8 @@ private:
 
     CWalletDB *pwalletdbEncryption;
 
-    // the current wallet version: clients below this version are not able to load the wallet
     int nWalletVersion;
 
-    // the maximum wallet format version: memory-only variable that specifies to what version this wallet may be upgraded
     int nWalletMaxVersion;
 
 public:
@@ -124,7 +113,6 @@ public:
 
     std::set<COutPoint> setLockedCoins;
 
-    // check whether we are allowed to upgrade (or already support) to the named feature
     bool CanSupportFeature(enum WalletFeature wf) { return nWalletMaxVersion >= wf; }
 
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL) const;
@@ -135,19 +123,13 @@ public:
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
 
-    // keystore implementation
-    // Generate a new key
     CPubKey GenerateNewKey();
-    // Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
-    // Adds a key to the store, without saving it to disk (used by LoadWallet)
     bool LoadKey(const CKey& key, const CPubKey &pubkey) { return CCryptoKeyStore::AddKeyPubKey(key, pubkey); }
 
     bool LoadMinVersion(int nVersion) { nWalletVersion = nVersion; nWalletMaxVersion = std::max(nWalletMaxVersion, nVersion); return true; }
 
-    // Adds an encrypted key to the store, and saves it to disk.
     bool AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
-    // Adds an encrypted key to the store, without saving it to disk (used by LoadWallet)
     bool LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     bool AddCScript(const CScript& redeemScript);
     bool LoadCScript(const CScript& redeemScript) { return CCryptoKeyStore::AddCScript(redeemScript); }
@@ -156,18 +138,11 @@ public:
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
-    /** Increment the next transaction order id
-        @return next transaction order id
-     */
     int64 IncOrderPosNext(CWalletDB *pwalletdb = NULL);
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64, TxPair > TxItems;
 
-    /** Get the wallet's activity log
-        @return multimap of ordered transactions and accounting entries
-        @warning Returned pointers are *only* valid within the scope of passed acentries
-     */
     TxItems OrderedTxItems(std::list<CAccountingEntry>& acentries, std::string strAccount = "");
 
     void MarkDirty();
@@ -296,27 +271,17 @@ public:
 
     bool SetDefaultKey(const CPubKey &vchPubKey);
 
-    // signify that a particular wallet feature is now used. this may change nWalletVersion and nWalletMaxVersion if those are lower
     bool SetMinVersion(enum WalletFeature, CWalletDB* pwalletdbIn = NULL, bool fExplicit = false);
 
-    // change which version we're allowed to upgrade to (note that this does not immediately imply upgrading to that format)
     bool SetMaxVersion(int nVersion);
 
-    // get the current wallet format (the oldest client version guaranteed to understand this wallet)
     int GetVersion() { return nWalletVersion; }
 
-    /** Address book entry changed.
-     * @note called with lock cs_wallet held.
-     */
     boost::signals2::signal<void (CWallet *wallet, const CTxDestination &address, const std::string &label, bool isMine, ChangeType status)> NotifyAddressBookChanged;
 
-    /** Wallet transaction added, removed or updated.
-     * @note called with lock cs_wallet held.
-     */
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx, ChangeType status)> NotifyTransactionChanged;
 };
 
-/** A key allocated from the key pool. */
 class CReserveKey
 {
 protected:
@@ -348,7 +313,7 @@ static void ReadOrderPos(int64& nOrderPos, mapValue_t& mapValue)
 {
     if (!mapValue.count("n"))
     {
-        nOrderPos = -1; // TODO: calculate elsewhere
+        nOrderPos = -1;
         return;
     }
     nOrderPos = atoi64(mapValue["n"].c_str());
@@ -363,9 +328,6 @@ static void WriteOrderPos(const int64& nOrderPos, mapValue_t& mapValue)
 }
 
 
-/** A transaction with a bunch of additional info that only the owner cares about.
- * It includes any unrecorded transactions needed to link it back to the block chain.
- */
 class CWalletTx : public CMerkleTx
 {
 private:
@@ -376,14 +338,13 @@ public:
     mapValue_t mapValue;
     std::vector<std::pair<std::string, std::string> > vOrderForm;
     unsigned int fTimeReceivedIsTxTime;
-    unsigned int nTimeReceived;  // time received by this node
+    unsigned int nTimeReceived;
     unsigned int nTimeSmart;
     char fFromMe;
     std::string strFromAccount;
-    std::vector<char> vfSpent; // which outputs are already spent
-    int64 nOrderPos;  // position in ordered transaction list
+    std::vector<char> vfSpent;
+    int64 nOrderPos;
 
-    // memory only
     mutable bool fDebitCached;
     mutable bool fCreditCached;
     mutable bool fImmatureCreditCached;
@@ -497,8 +458,6 @@ public:
         pthis->mapValue.erase("timesmart");
     )
 
-    // marks certain txout's as spent
-    // returns true if any update took place
     bool UpdateSpent(const std::vector<char>& vfNewSpent)
     {
         bool fReturn = false;
@@ -517,7 +476,6 @@ public:
         return fReturn;
     }
 
-    // make sure balances are recalculated
     void MarkDirty()
     {
         fCreditCached = false;
@@ -566,11 +524,9 @@ public:
 
     int64 GetCredit(bool fUseCache=true) const
     {
-        // Must wait until coinbase is safely deep enough in the chain before valuing it
         if (IsCoinBase() && GetBlocksToMaturity() > 0)
             return 0;
 
-        // GetBalance can assume transactions in mapWallet won't change
         if (fUseCache && fCreditCached)
             return nCreditCached;
         nCreditCached = pwallet->GetCredit(*this);
@@ -594,7 +550,6 @@ public:
 
     int64 GetAvailableCredit(bool fUseCache=true) const
     {
-        // Must wait until coinbase is safely deep enough in the chain before valuing it
         if (IsCoinBase() && GetBlocksToMaturity() > 0)
             return 0;
 
@@ -641,7 +596,6 @@ public:
 
     bool IsConfirmed() const
     {
-        // Quick answer in most cases
         if (!IsFinal())
             return false;
         int nDepth = GetDepthInMainChain();
@@ -649,11 +603,9 @@ public:
             return true;
         if (nDepth < 0)
             return false;
-        if (!bSpendZeroConfChange || !IsFromMe()) // using wtx's cached debit
+        if (!bSpendZeroConfChange || !IsFromMe())
             return false;
 
-        // If no confirmations but it's from us, we can still
-        // consider it confirmed if all dependencies are confirmed
         std::map<uint256, const CMerkleTx*> mapPrev;
         std::vector<const CMerkleTx*> vWorkQueue;
         vWorkQueue.reserve(vtxPrev.size()+1);
@@ -727,7 +679,6 @@ public:
 
 
 
-/** Private key that includes an expiration date in case it never gets used. */
 class CWalletKey
 {
 public:
@@ -735,8 +686,6 @@ public:
     int64 nTimeCreated;
     int64 nTimeExpires;
     std::string strComment;
-    //// todo: add something to note what created it (user, getnewaddress, change)
-    ////   maybe should have a map<string, string> property map
 
     CWalletKey(int64 nExpires=0)
     {
@@ -760,9 +709,6 @@ public:
 
 
 
-/** Account information.
- * Stored in wallet with key "acc"+string account name.
- */
 class CAccount
 {
 public:
@@ -788,9 +734,6 @@ public:
 
 
 
-/** Internal transfers.
- * Database key is acentry<account><counter>.
- */
 class CAccountingEntry
 {
 public:
@@ -800,7 +743,7 @@ public:
     std::string strOtherAccount;
     std::string strComment;
     mapValue_t mapValue;
-    int64 nOrderPos;  // position in ordered transaction list
+    int64 nOrderPos;
     uint64 nEntryNo;
 
     CAccountingEntry()
@@ -823,7 +766,6 @@ public:
         CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
         if (!(nType & SER_GETHASH))
             READWRITE(nVersion);
-        // Note: strAccount is serialized as part of the key, not here.
         READWRITE(nCreditDebit);
         READWRITE(nTime);
         READWRITE(strOtherAccount);

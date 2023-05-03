@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_SERIALIZE_H
 #define BITCOIN_SERIALIZE_H
 
@@ -30,23 +26,15 @@ class CDataStream;
 class CAutoFile;
 static const unsigned int MAX_SIZE = 0x02000000;
 
-// Used to bypass the rule against non-const reference to temporary
-// where it makes sense with wrappers such as CFlatData or CTxDB
 template<typename T>
 inline T& REF(const T& val)
 {
     return const_cast<T&>(val);
 }
 
-/////////////////////////////////////////////////////////////////
-//
-// Templates for serializing to anything that looks like a stream,
-// i.e. anything that supports .read(char*, int) and .write(char*, int)
-//
 
 enum
 {
-    // primary actions
     SER_NETWORK         = (1 << 0),
     SER_DISK            = (1 << 1),
     SER_GETHASH         = (1 << 2),
@@ -61,7 +49,7 @@ enum
         const bool fRead = false;               \
         unsigned int nSerSize = 0;              \
         ser_streamplaceholder s;                \
-        assert(fGetSize||fWrite||fRead); /* suppress warning */ \
+        assert(fGetSize||fWrite||fRead); \
         s.nType = nType;                        \
         s.nVersion = nVersion;                  \
         {statements}                            \
@@ -75,7 +63,7 @@ enum
         const bool fWrite = true;               \
         const bool fRead = false;               \
         unsigned int nSerSize = 0;              \
-        assert(fGetSize||fWrite||fRead); /* suppress warning */ \
+        assert(fGetSize||fWrite||fRead); \
         {statements}                            \
     }                                           \
     template<typename Stream>                   \
@@ -86,7 +74,7 @@ enum
         const bool fWrite = false;              \
         const bool fRead = true;                \
         unsigned int nSerSize = 0;              \
-        assert(fGetSize||fWrite||fRead); /* suppress warning */ \
+        assert(fGetSize||fWrite||fRead); \
         {statements}                            \
     }
 
@@ -97,9 +85,6 @@ enum
 
 
 
-//
-// Basic types
-//
 #define WRITEDATA(s, obj)   s.write((char*)&(obj), sizeof(obj))
 #define READDATA(s, obj)    s.read((char*)&(obj), sizeof(obj))
 
@@ -154,13 +139,6 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
 
 
 
-//
-// Compact size
-//  size <  253        -- 1 byte
-//  size <= USHRT_MAX  -- 3 bytes  (253 + 2 bytes)
-//  size <= UINT_MAX   -- 5 bytes  (254 + 4 bytes)
-//  size >  UINT_MAX   -- 9 bytes  (255 + 8 bytes)
-//
 inline unsigned int GetSizeOfCompactSize(uint64 nSize)
 {
     if (nSize < 253)             return sizeof(unsigned char);
@@ -234,27 +212,6 @@ uint64 ReadCompactSize(Stream& is)
     return nSizeRet;
 }
 
-// Variable-length integers: bytes are a MSB base-128 encoding of the number.
-// The high bit in each byte signifies whether another digit follows. To make
-// the encoding is one-to-one, one is subtracted from all but the last digit.
-// Thus, the byte sequence a[] with length len, where all but the last byte
-// has bit 128 set, encodes the number:
-//
-//   (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
-//
-// Properties:
-// * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
-// * Every integer has exactly one encoding
-// * Encoding does not depend on size of original integer type
-// * No redundancy: every (infinite) byte sequence corresponds to a list
-//   of encoded integers.
-//
-// 0:         [0x00]  256:        [0x81 0x00]
-// 1:         [0x01]  16383:      [0xFE 0x7F]
-// 127:       [0x7F]  16384:      [0xFF 0x00]
-// 128:  [0x80 0x00]  16511: [0x80 0xFF 0x7F]
-// 255:  [0x80 0x7F]  65535: [0x82 0xFD 0x7F]
-// 2^32:           [0x8E 0xFE 0xFE 0xFF 0x00]
 
 template<typename I>
 inline unsigned int GetSizeOfVarInt(I n)
@@ -304,8 +261,6 @@ I ReadVarInt(Stream& is)
 #define FLATDATA(obj)  REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
 #define VARINT(obj)    REF(WrapVarInt(REF(obj)))
 
-/** Wrapper for serializing arrays and POD.
- */
 class CFlatData
 {
 protected:
@@ -362,16 +317,11 @@ public:
 template<typename I>
 CVarInt<I> WrapVarInt(I& n) { return CVarInt<I>(n); }
 
-//
-// Forward declarations
-//
 
-// string
 template<typename C> unsigned int GetSerializeSize(const std::basic_string<C>& str, int, int=0);
 template<typename Stream, typename C> void Serialize(Stream& os, const std::basic_string<C>& str, int, int=0);
 template<typename Stream, typename C> void Unserialize(Stream& is, std::basic_string<C>& str, int, int=0);
 
-// vector
 template<typename T, typename A> unsigned int GetSerializeSize_impl(const std::vector<T, A>& v, int nType, int nVersion, const boost::true_type&);
 template<typename T, typename A> unsigned int GetSerializeSize_impl(const std::vector<T, A>& v, int nType, int nVersion, const boost::false_type&);
 template<typename T, typename A> inline unsigned int GetSerializeSize(const std::vector<T, A>& v, int nType, int nVersion);
@@ -382,32 +332,26 @@ template<typename Stream, typename T, typename A> void Unserialize_impl(Stream& 
 template<typename Stream, typename T, typename A> void Unserialize_impl(Stream& is, std::vector<T, A>& v, int nType, int nVersion, const boost::false_type&);
 template<typename Stream, typename T, typename A> inline void Unserialize(Stream& is, std::vector<T, A>& v, int nType, int nVersion);
 
-// others derived from vector
 extern inline unsigned int GetSerializeSize(const CScript& v, int nType, int nVersion);
 template<typename Stream> void Serialize(Stream& os, const CScript& v, int nType, int nVersion);
 template<typename Stream> void Unserialize(Stream& is, CScript& v, int nType, int nVersion);
 
-// pair
 template<typename K, typename T> unsigned int GetSerializeSize(const std::pair<K, T>& item, int nType, int nVersion);
 template<typename Stream, typename K, typename T> void Serialize(Stream& os, const std::pair<K, T>& item, int nType, int nVersion);
 template<typename Stream, typename K, typename T> void Unserialize(Stream& is, std::pair<K, T>& item, int nType, int nVersion);
 
-// 3 tuple
 template<typename T0, typename T1, typename T2> unsigned int GetSerializeSize(const boost::tuple<T0, T1, T2>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2> void Serialize(Stream& os, const boost::tuple<T0, T1, T2>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2> void Unserialize(Stream& is, boost::tuple<T0, T1, T2>& item, int nType, int nVersion);
 
-// 4 tuple
 template<typename T0, typename T1, typename T2, typename T3> unsigned int GetSerializeSize(const boost::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Serialize(Stream& os, const boost::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Unserialize(Stream& is, boost::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 
-// map
 template<typename K, typename T, typename Pred, typename A> unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename T, typename Pred, typename A> void Serialize(Stream& os, const std::map<K, T, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename T, typename Pred, typename A> void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion);
 
-// set
 template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
@@ -416,12 +360,6 @@ template<typename Stream, typename K, typename Pred, typename A> void Unserializ
 
 
 
-//
-// If none of the specialized versions above matched, default to calling member function.
-// "int nType" is changed to "long nType" to keep from getting an ambiguous overload error.
-// The compiler will only cast int to long if none of the other templates matched.
-// Thanks to Boost serialization for this idea.
-//
 template<typename T>
 inline unsigned int GetSerializeSize(const T& a, long nType, int nVersion)
 {
@@ -444,9 +382,6 @@ inline void Unserialize(Stream& is, T& a, long nType, int nVersion)
 
 
 
-//
-// string
-//
 template<typename C>
 unsigned int GetSerializeSize(const std::basic_string<C>& str, int, int)
 {
@@ -472,9 +407,6 @@ void Unserialize(Stream& is, std::basic_string<C>& str, int, int)
 
 
 
-//
-// vector
-//
 template<typename T, typename A>
 unsigned int GetSerializeSize_impl(const std::vector<T, A>& v, int nType, int nVersion, const boost::true_type&)
 {
@@ -523,7 +455,6 @@ inline void Serialize(Stream& os, const std::vector<T, A>& v, int nType, int nVe
 template<typename Stream, typename T, typename A>
 void Unserialize_impl(Stream& is, std::vector<T, A>& v, int nType, int nVersion, const boost::true_type&)
 {
-    // Limit size per read so bogus size value won't cause out of memory
     v.clear();
     unsigned int nSize = ReadCompactSize(is);
     unsigned int i = 0;
@@ -562,9 +493,6 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v, int nType, int nVersio
 
 
 
-//
-// others derived from vector
-//
 inline unsigned int GetSerializeSize(const CScript& v, int nType, int nVersion)
 {
     return GetSerializeSize((const std::vector<unsigned char>&)v, nType, nVersion);
@@ -584,9 +512,6 @@ void Unserialize(Stream& is, CScript& v, int nType, int nVersion)
 
 
 
-//
-// pair
-//
 template<typename K, typename T>
 unsigned int GetSerializeSize(const std::pair<K, T>& item, int nType, int nVersion)
 {
@@ -609,9 +534,6 @@ void Unserialize(Stream& is, std::pair<K, T>& item, int nType, int nVersion)
 
 
 
-//
-// 3 tuple
-//
 template<typename T0, typename T1, typename T2>
 unsigned int GetSerializeSize(const boost::tuple<T0, T1, T2>& item, int nType, int nVersion)
 {
@@ -640,9 +562,6 @@ void Unserialize(Stream& is, boost::tuple<T0, T1, T2>& item, int nType, int nVer
 
 
 
-//
-// 4 tuple
-//
 template<typename T0, typename T1, typename T2, typename T3>
 unsigned int GetSerializeSize(const boost::tuple<T0, T1, T2, T3>& item, int nType, int nVersion)
 {
@@ -674,9 +593,6 @@ void Unserialize(Stream& is, boost::tuple<T0, T1, T2, T3>& item, int nType, int 
 
 
 
-//
-// map
-//
 template<typename K, typename T, typename Pred, typename A>
 unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion)
 {
@@ -710,9 +626,6 @@ void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion
 
 
 
-//
-// set
-//
 template<typename K, typename Pred, typename A>
 unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion)
 {
@@ -746,9 +659,6 @@ void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
 
 
 
-//
-// Support for IMPLEMENT_SERIALIZE and READWRITE macro
-//
 class CSerActionGetSerializeSize { };
 class CSerActionSerialize { };
 class CSerActionUnserialize { };
@@ -791,11 +701,6 @@ struct ser_streamplaceholder
 
 typedef std::vector<char, zero_after_free_allocator<char> > CSerializeData;
 
-/** Double ended buffer combining vector and stream-like interfaces.
- *
- * >> and << read and write unformatted data using the above serialization templates.
- * Fills with data in linear time; some stringstream implementations take N^2 time.
- */
 class CDataStream
 {
 protected:
@@ -878,9 +783,6 @@ public:
     }
 
 
-    //
-    // Vector subset
-    //
     const_iterator begin() const                     { return vch.begin() + nReadPos; }
     iterator begin()                                 { return vch.begin() + nReadPos; }
     const_iterator end() const                       { return vch.end(); }
@@ -900,7 +802,6 @@ public:
         assert(last - first >= 0);
         if (it == vch.begin() + nReadPos && (unsigned int)(last - first) <= nReadPos)
         {
-            // special case for inserting at the front when there's room
             nReadPos -= (last - first);
             memcpy(&vch[nReadPos], &first[0], last - first);
         }
@@ -914,7 +815,6 @@ public:
         assert(last - first >= 0);
         if (it == vch.begin() + nReadPos && (unsigned int)(last - first) <= nReadPos)
         {
-            // special case for inserting at the front when there's room
             nReadPos -= (last - first);
             memcpy(&vch[nReadPos], &first[0], last - first);
         }
@@ -927,10 +827,8 @@ public:
     {
         if (it == vch.begin() + nReadPos)
         {
-            // special case for erasing from the front
             if (++nReadPos >= vch.size())
             {
-                // whenever we reach the end, we take the opportunity to clear the buffer
                 nReadPos = 0;
                 return vch.erase(vch.begin(), vch.end());
             }
@@ -944,7 +842,6 @@ public:
     {
         if (first == vch.begin() + nReadPos)
         {
-            // special case for erasing from the front
             if (last == vch.end())
             {
                 nReadPos = 0;
@@ -968,7 +865,6 @@ public:
 
     bool Rewind(size_type n)
     {
-        // Rewind by n characters if the buffer hasn't been compacted yet
         if (n > nReadPos)
             return false;
         nReadPos -= n;
@@ -976,9 +872,6 @@ public:
     }
 
 
-    //
-    // Stream subset
-    //
     void setstate(short bits, const char* psz)
     {
         state |= bits;
@@ -989,7 +882,7 @@ public:
     bool eof() const             { return size() == 0; }
     bool fail() const            { return state & (std::ios::badbit | std::ios::failbit); }
     bool good() const            { return !eof() && (state == 0); }
-    void clear(short n)          { state = n; }  // name conflict with vector clear()
+    void clear(short n)          { state = n; }
     short exceptions()           { return exceptmask; }
     short exceptions(short mask) { short prev = exceptmask; exceptmask = mask; setstate(0, "CDataStream"); return prev; }
     CDataStream* rdbuf()         { return this; }
@@ -1004,7 +897,6 @@ public:
 
     CDataStream& read(char* pch, int nSize)
     {
-        // Read from the beginning of the buffer
         assert(nSize >= 0);
         unsigned int nReadPosNext = nReadPos + nSize;
         if (nReadPosNext >= vch.size())
@@ -1027,7 +919,6 @@ public:
 
     CDataStream& ignore(int nSize)
     {
-        // Ignore from the beginning of the buffer
         assert(nSize >= 0);
         unsigned int nReadPosNext = nReadPos + nSize;
         if (nReadPosNext >= vch.size())
@@ -1047,7 +938,6 @@ public:
 
     CDataStream& write(const char* pch, int nSize)
     {
-        // Write to the end of the buffer
         assert(nSize >= 0);
         vch.insert(vch.end(), pch, pch + nSize);
         return (*this);
@@ -1056,7 +946,6 @@ public:
     template<typename Stream>
     void Serialize(Stream& s, int nType, int nVersion) const
     {
-        // Special case: stream << stream concatenates like stream += stream
         if (!vch.empty())
             s.write((char*)&vch[0], vch.size() * sizeof(vch[0]));
     }
@@ -1064,14 +953,12 @@ public:
     template<typename T>
     unsigned int GetSerializeSize(const T& obj)
     {
-        // Tells the size of the object if serialized to this stream
         return ::GetSerializeSize(obj, nType, nVersion);
     }
 
     template<typename T>
     CDataStream& operator<<(const T& obj)
     {
-        // Serialize to this stream
         ::Serialize(*this, obj, nType, nVersion);
         return (*this);
     }
@@ -1079,7 +966,6 @@ public:
     template<typename T>
     CDataStream& operator>>(T& obj)
     {
-        // Unserialize from this stream
         ::Unserialize(*this, obj, nType, nVersion);
         return (*this);
     }
@@ -1099,12 +985,6 @@ public:
 
 
 
-/** RAII wrapper for FILE*.
- *
- * Will automatically close the file when it goes out of scope if not null.
- * If you're returning the file pointer, return file.release().
- * If you need to close the file early, use file.fclose() instead of fclose(file).
- */
 class CAutoFile
 {
 protected:
@@ -1145,9 +1025,6 @@ public:
     bool operator!()            { return (file == NULL); }
 
 
-    //
-    // Stream subset
-    //
     void setstate(short bits, const char* psz)
     {
         state |= bits;
@@ -1189,14 +1066,12 @@ public:
     template<typename T>
     unsigned int GetSerializeSize(const T& obj)
     {
-        // Tells the size of the object if serialized to this stream
         return ::GetSerializeSize(obj, nType, nVersion);
     }
 
     template<typename T>
     CAutoFile& operator<<(const T& obj)
     {
-        // Serialize to this stream
         if (!file)
             throw std::ios_base::failure("CAutoFile::operator<< : file handle is NULL");
         ::Serialize(*this, obj, nType, nVersion);
@@ -1206,7 +1081,6 @@ public:
     template<typename T>
     CAutoFile& operator>>(T& obj)
     {
-        // Unserialize from this stream
         if (!file)
             throw std::ios_base::failure("CAutoFile::operator>> : file handle is NULL");
         ::Unserialize(*this, obj, nType, nVersion);
@@ -1214,18 +1088,15 @@ public:
     }
 };
 
-/** Wrapper around a FILE* that implements a ring buffer to
- *  deserialize from. It guarantees the ability to rewind
- *  a given number of bytes. */
 class CBufferedFile
 {
 private:
-    FILE *src;          // source file
-    uint64 nSrcPos;     // how many bytes have been read from source
-    uint64 nReadPos;    // how many bytes have been read from this
-    uint64 nReadLimit;  // up to which position we're allowed to read
-    uint64 nRewind;     // how many bytes we guarantee to rewind
-    std::vector<char> vchBuf; // the buffer
+    FILE *src;
+    uint64 nSrcPos;
+    uint64 nReadPos;
+    uint64 nReadLimit;
+    uint64 nRewind;
+    std::vector<char> vchBuf;
 
     short state;
     short exceptmask;
@@ -1237,7 +1108,6 @@ protected:
             throw std::ios_base::failure(psz);
     }
 
-    // read data from the source to fill the buffer
     bool Fill() {
         unsigned int pos = nSrcPos % vchBuf.size();
         unsigned int readNow = vchBuf.size() - pos;
@@ -1265,17 +1135,14 @@ public:
         state(0), exceptmask(std::ios_base::badbit | std::ios_base::failbit), nType(nTypeIn), nVersion(nVersionIn) {
     }
 
-    // check whether no error occurred
     bool good() const {
         return state == 0;
     }
 
-    // check whether we're at the end of the source file
     bool eof() const {
         return nReadPos == nSrcPos && feof(src);
     }
 
-    // read a number of bytes
     CBufferedFile& read(char *pch, size_t nSize) {
         if (nSize + nReadPos > nReadLimit)
             throw std::ios_base::failure("Read attempted past buffer limit");
@@ -1298,12 +1165,10 @@ public:
         return (*this);
     }
 
-    // return the current reading position
     uint64 GetPos() {
         return nReadPos;
     }
 
-    // rewind to a given reading position
     bool SetPos(uint64 nPos) {
         nReadPos = nPos;
         if (nReadPos + nRewind < nSrcPos) {
@@ -1330,8 +1195,6 @@ public:
         return true;
     }
 
-    // prevent reading beyond a certain position
-    // no argument removes the limit
     bool SetLimit(uint64 nPos = (uint64)(-1)) {
         if (nPos < nReadPos)
             return false;
@@ -1341,12 +1204,10 @@ public:
 
     template<typename T>
     CBufferedFile& operator>>(T& obj) {
-        // Unserialize from this stream
         ::Unserialize(*this, obj, nType, nVersion);
         return (*this);
     }
 
-    // search for a given byte in the stream, and remain positioned on it
     void FindByte(char ch) {
         while (true) {
             if (nReadPos == nSrcPos)

@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "walletdb.h"
 #include "wallet.h"
@@ -14,9 +10,6 @@ using namespace boost;
 
 static uint64 nAccountingEntryNumber = 0;
 
-//
-// CWalletDB
-//
 
 bool CWalletDB::WriteName(const string& strAddress, const string& strName)
 {
@@ -26,8 +19,6 @@ bool CWalletDB::WriteName(const string& strAddress, const string& strName)
 
 bool CWalletDB::EraseName(const string& strAddress)
 {
-    // This should only be used for sending addresses, never for receiving addresses,
-    // receiving addresses must always have an address book entry if they're not change return.
     nWalletDBUpdated++;
     return Erase(make_pair(string("name"), strAddress));
 }
@@ -75,7 +66,6 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
     unsigned int fFlags = DB_SET_RANGE;
     loop
     {
-        // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
             ssKey << boost::make_tuple(string("acentry"), (fAllAccounts? string("") : strAccount), uint64(0));
@@ -90,7 +80,6 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
             throw runtime_error("CWalletDB::ListAccountCreditDebit() : error scanning DB");
         }
 
-        // Unserialize
         string strType;
         ssKey >> strType;
         if (strType != "acentry")
@@ -113,10 +102,7 @@ DBErrors
 CWalletDB::ReorderTransactions(CWallet* pwallet)
 {
     LOCK(pwallet->cs_wallet);
-    // Old wallets didn't have any defined order for transactions
-    // Probably a bad idea to change the output of this
 
-    // First: get all CWalletTx and CAccountingEntry into a sorted-by-time multimap.
     typedef pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef multimap<int64, TxPair > TxItems;
     TxItems txByTime;
@@ -148,7 +134,6 @@ CWalletDB::ReorderTransactions(CWallet* pwallet)
             nOrderPosOffsets.push_back(nOrderPos);
 
             if (pacentry)
-                // Have to write accounting regardless, since we don't keep it in memory
                 if (!WriteAccountingEntry(pacentry->nEntryNo, *pacentry))
                     return DB_LOAD_FAIL;
         }
@@ -166,7 +151,6 @@ CWalletDB::ReorderTransactions(CWallet* pwallet)
             if (!nOrderPosOff)
                 continue;
 
-            // Since we're changing the order, write it back
             if (pwtx)
             {
                 if (!WriteTx(pwtx->GetHash(), *pwtx))
@@ -188,9 +172,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
              bool& fIsEncrypted,  bool& fAnyUnordered, string& strType, string& strErr)
 {
     try {
-        // Unserialize
-        // Taking advantage of the fact that pair serialization
-        // is just the two items serialized one after the other
         ssKey >> strType;
         if (strType == "name")
         {
@@ -210,7 +191,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             else
                 return false;
 
-            // Undo serialize changes in 31600
             if (31404 <= wtx.fTimeReceivedIsTxTime && wtx.fTimeReceivedIsTxTime <= 31703)
             {
                 if (!ssValue.empty())
@@ -234,13 +214,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 fAnyUnordered = true;
 
             pwallet->mapWallet[hash] = wtx;
-            //// debug print
-            //printf("LoadWallet  %s\n", wtx.GetHash().ToString().c_str());
-            //printf(" %12"PRI64d"  %s  %s  %s\n",
-            //    wtx.vout[0].nValue,
-            //    DateTimeStrFormat("%Y-%m-%d %H:%M:%S", wtx.GetBlockTime()).c_str(),
-            //    wtx.hashBlock.ToString().c_str(),
-            //    wtx.mapValue["message"].c_str());
         }
         else if (strType == "acentry")
         {
@@ -386,7 +359,6 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             pwallet->LoadMinVersion(nMinVersion);
         }
 
-        // Get cursor
         Dbc* pcursor = GetCursor();
         if (!pcursor)
         {
@@ -396,7 +368,6 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
         loop
         {
-            // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
             int ret = ReadAtCursor(pcursor, ssKey, ssValue);
@@ -408,21 +379,16 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
                 return DB_CORRUPT;
             }
 
-            // Try to be tolerant of single corrupt records:
             string strType, strErr;
             if (!ReadKeyValue(pwallet, ssKey, ssValue, nFileVersion,
                               vWalletUpgrade, fIsEncrypted, fAnyUnordered, strType, strErr))
             {
-                // losing keys is considered a catastrophic error, anything else
-                // we assume the user can live with:
                 if (IsKeyType(strType))
                     result = DB_CORRUPT;
                 else
                 {
-                    // Leave other errors alone, if we try to fix them we might make things worse.
-                    fNoncriticalErrors = true; // ... but do warn the user there is something wrong.
+                    fNoncriticalErrors = true;
                     if (strType == "tx")
-                        // Rescan if there is a bad transaction record:
                         SoftSetBoolArg("-rescan", true);
                 }
             }
@@ -441,8 +407,6 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     if (fNoncriticalErrors && result == DB_LOAD_OK)
         result = DB_NONCRITICAL_ERROR;
 
-    // Any wallet corruption at all: skip any rewriting or
-    // upgrading, we don't want to make it worse.
     if (result != DB_LOAD_OK)
         return result;
 
@@ -451,11 +415,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     BOOST_FOREACH(uint256 hash, vWalletUpgrade)
         WriteTx(hash, pwallet->mapWallet[hash]);
 
-    // Rewrite encrypted wallets of versions 0.4.0 and 0.5.0rc:
     if (fIsEncrypted && (nFileVersion == 40000 || nFileVersion == 50000))
         return DB_NEED_REWRITE;
 
-    if (nFileVersion < CLIENT_VERSION) // Update
+    if (nFileVersion < CLIENT_VERSION)
         WriteVersion(CLIENT_VERSION);
 
     if (fAnyUnordered)
@@ -466,7 +429,6 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
 void ThreadFlushWalletDB(const string& strFile)
 {
-    // Make this thread recognisable as the wallet flushing thread
     RenameThread("bitcoin-wallet");
 
     static bool fOneThread;
@@ -494,7 +456,6 @@ void ThreadFlushWalletDB(const string& strFile)
             TRY_LOCK(bitdb.cs_db,lockDb);
             if (lockDb)
             {
-                // Don't do this if any databases are in use
                 int nRefCount = 0;
                 map<string, int>::iterator mi = bitdb.mapFileUseCount.begin();
                 while (mi != bitdb.mapFileUseCount.end())
@@ -513,7 +474,6 @@ void ThreadFlushWalletDB(const string& strFile)
                         nLastFlushed = nWalletDBUpdated;
                         int64 nStart = GetTimeMillis();
 
-                        // Flush wallet.dat so it's self contained
                         bitdb.CloseDb(strFile);
                         bitdb.CheckpointLSN(strFile);
 
@@ -536,12 +496,10 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
             LOCK(bitdb.cs_db);
             if (!bitdb.mapFileUseCount.count(wallet.strWalletFile) || bitdb.mapFileUseCount[wallet.strWalletFile] == 0)
             {
-                // Flush log data to the dat file
                 bitdb.CloseDb(wallet.strWalletFile);
                 bitdb.CheckpointLSN(wallet.strWalletFile);
                 bitdb.mapFileUseCount.erase(wallet.strWalletFile);
 
-                // Copy wallet.dat
                 filesystem::path pathSrc = GetDataDir() / wallet.strWalletFile;
                 filesystem::path pathDest(strDest);
                 if (filesystem::is_directory(pathDest))
@@ -566,18 +524,8 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
     return false;
 }
 
-//
-// Try to (very carefully!) recover wallet.dat if there is a problem.
-//
 bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
 {
-    // Recovery procedure:
-    // move wallet.dat to wallet.timestamp.bak
-    // Call Salvage with fAggressive=true to
-    // get as much data as possible.
-    // Rewrite salvaged data to wallet.dat
-    // Set -rescan so any missing transactions will be
-    // found.
     int64 now = GetTime();
     std::string newFilename = strprintf("wallet.%"PRI64d".bak", now);
 
@@ -602,11 +550,11 @@ bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
 
     bool fSuccess = allOK;
     Db* pdbCopy = new Db(&dbenv.dbenv, 0);
-    int ret = pdbCopy->open(NULL,               // Txn pointer
-                            filename.c_str(),   // Filename
-                            "main",             // Logical db name
-                            DB_BTREE,           // Database type
-                            DB_CREATE,          // Flags
+    int ret = pdbCopy->open(NULL,
+                            filename.c_str(),
+                            "main",
+                            DB_BTREE,
+                            DB_CREATE,
                             0);
     if (ret > 0)
     {

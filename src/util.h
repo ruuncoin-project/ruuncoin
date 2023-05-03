@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
 
@@ -27,7 +23,7 @@
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 
-#include "netbase.h" // for AddTimeData
+#include "netbase.h"
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
@@ -54,18 +50,14 @@ static const int64 CENT = 1000000;
 #endif
 #endif
 
-/* Format characters for (s)size_t and ptrdiff_t */
 #if defined(_MSC_VER) || defined(__MSVCRT__)
-  /* (s)size_t and ptrdiff_t have the same size specifier in MSVC:
-     http://msdn.microsoft.com/en-us/library/tcxf1dw6%28v=vs.100%29.aspx
-   */
   #define PRIszx    "Ix"
   #define PRIszu    "Iu"
   #define PRIszd    "Id"
   #define PRIpdx    "Ix"
   #define PRIpdu    "Iu"
   #define PRIpdd    "Id"
-#else /* C99 standard */
+#else
   #define PRIszx    "zx"
   #define PRIszu    "zu"
   #define PRIszd    "zd"
@@ -74,10 +66,8 @@ static const int64 CENT = 1000000;
   #define PRIpdd    "td"
 #endif
 
-// This is needed because the foreach macro can't get over the comma in pair<t1, t2>
 #define PAIRTYPE(t1, t2)    std::pair<t1, t2>
 
-// Align by increasing pointer, must have extra space at end of buffer
 template <size_t nBytes, typename T>
 T* alignup(T* p)
 {
@@ -105,9 +95,6 @@ T* alignup(T* p)
 
 inline void MilliSleep(int64 n)
 {
-// Boost's sleep_for was uninterruptable when backed by nanosleep from 1.50
-// until fixed in 1.52. Use the deprecated sleep method for the broken case.
-// See: https://svn.boost.org/trac/boost/ticket/7238
 
 #if BOOST_VERSION >= 105000 && (!defined(BOOST_HAS_NANOSLEEP) || BOOST_VERSION >= 105200)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(n));
@@ -116,10 +103,6 @@ inline void MilliSleep(int64 n)
 #endif
 }
 
-/* This GNU C extension enables the compiler to check the format string against the parameters provided.
- * X is the number of the "format string" parameter, and Y is the number of the first variadic parameter.
- * Parameters count from 1.
- */
 #ifdef __GNUC__
 #define ATTR_WARN_PRINTF(X,Y) __attribute__((format(printf,X,Y)))
 #else
@@ -153,30 +136,14 @@ void RandAddSeed();
 void RandAddSeedPerfmon();
 int ATTR_WARN_PRINTF(1,2) OutputDebugStringF(const char* pszFormat, ...);
 
-/*
-  Rationale for the real_strprintf / strprintf construction:
-    It is not allowed to use va_start with a pass-by-reference argument.
-    (C++ standard, 18.7, paragraph 3). Use a dummy argument to work around this, and use a
-    macro to keep similar semantics.
-*/
 
-/** Overload strprintf for char*, so that GCC format type warnings can be given */
 std::string ATTR_WARN_PRINTF(1,3) real_strprintf(const char *format, int dummy, ...);
-/** Overload strprintf for std::string, to be able to use it with _ (translation).
- * This will not support GCC format type warnings (-Wformat) so be careful.
- */
 std::string real_strprintf(const std::string &format, int dummy, ...);
 #define strprintf(format, ...) real_strprintf(format, 0, __VA_ARGS__)
 std::string vstrprintf(const char *format, va_list ap);
 
 bool ATTR_WARN_PRINTF(1,2) error(const char *format, ...);
 
-/* Redefine printf so that it directs output to debug.log
- *
- * Do this *after* defining the other printf-like functions, because otherwise the
- * __attribute__((format(printf,X,Y))) gets expanded to __attribute__((format(OutputDebugStringF,X,Y)))
- * which confuses gcc.
- */
 #define printf OutputDebugStringF
 
 void LogException(std::exception* pex, const char* pszThread);
@@ -374,58 +341,16 @@ inline bool IsSwitchChar(char c)
 #endif
 }
 
-/**
- * Return string argument or default value
- *
- * @param strArg Argument to get (e.g. "-foo")
- * @param default (e.g. "1")
- * @return command-line argument or default value
- */
 std::string GetArg(const std::string& strArg, const std::string& strDefault);
 
-/**
- * Return integer argument or default value
- *
- * @param strArg Argument to get (e.g. "-foo")
- * @param default (e.g. 1)
- * @return command-line argument (0 if invalid number) or default value
- */
 int64 GetArg(const std::string& strArg, int64 nDefault);
 
-/**
- * Return boolean argument or default value
- *
- * @param strArg Argument to get (e.g. "-foo")
- * @param default (true or false)
- * @return command-line argument or default value
- */
 bool GetBoolArg(const std::string& strArg, bool fDefault=false);
 
-/**
- * Set an argument if it doesn't already have a value
- *
- * @param strArg Argument to set (e.g. "-foo")
- * @param strValue Value (e.g. "1")
- * @return true if argument gets set, false if it already had a value
- */
 bool SoftSetArg(const std::string& strArg, const std::string& strValue);
 
-/**
- * Set a boolean argument if it doesn't already have a value
- *
- * @param strArg Argument to set (e.g. "-foo")
- * @param fValue Value (e.g. false)
- * @return true if argument gets set, false if it already had a value
- */
 bool SoftSetBoolArg(const std::string& strArg, bool fValue);
 
-/**
- * MWC RNG of George Marsaglia
- * This is intended to be fast. It has a period of 2^59.3, though the
- * least significant 16 bits only have a period of about 2^30.1.
- *
- * @return random value
- */
 extern uint32_t insecure_rand_Rz;
 extern uint32_t insecure_rand_Rw;
 static inline uint32_t insecure_rand(void)
@@ -435,17 +360,8 @@ static inline uint32_t insecure_rand(void)
     return (insecure_rand_Rw << 16) + insecure_rand_Rz;
 }
 
-/**
- * Seed insecure_rand using the random pool.
- * @param Deterministic Use a determinstic seed
- */
 void seed_insecure_rand(bool fDeterministic=false);
 
-/**
- * Timing-attack-resistant comparison.
- * Takes time proportional to length
- * of first argument.
- */
 template <typename T>
 bool TimingResistantEqual(const T& a, const T& b)
 {
@@ -456,9 +372,6 @@ bool TimingResistantEqual(const T& a, const T& b)
     return accumulator == 0;
 }
 
-/** Median filter over a stream of values.
- * Returns the median of the last N numbers
- */
 template <typename T> class CMedianFilter
 {
 private:
@@ -491,11 +404,11 @@ public:
     {
         int size = vSorted.size();
         assert(size>0);
-        if(size & 1) // Odd number of elements
+        if(size & 1)
         {
             return vSorted[size/2];
         }
-        else // Even number of elements
+        else
         {
             return (vSorted[size/2-1] + vSorted[size/2]) / 2;
         }
@@ -528,8 +441,6 @@ inline void SetThreadPriority(int nPriority)
 
 inline void SetThreadPriority(int nPriority)
 {
-    // It's unclear if it's even possible to change thread priorities on Linux,
-    // but we really and truly need it for the generation threads.
 #ifdef PRIO_THREAD
     setpriority(PRIO_THREAD, 0, nPriority);
 #else
@@ -551,13 +462,6 @@ inline uint32_t ByteReverse(uint32_t value)
     return (value<<16) | (value>>16);
 }
 
-// Standard wrapper for do-something-forever thread functions.
-// "Forever" really means until the thread is interrupted.
-// Use it like:
-//   new boost::thread(boost::bind(&LoopForever<void (*)()>, "dumpaddr", &DumpAddresses, 900000));
-// or maybe:
-//    boost::function<void()> f = boost::bind(&FunctionWithArg, argument);
-//    threadGroup.create_thread(boost::bind(&LoopForever<boost::function<void()> >, "nothing", f, milliseconds));
 template <typename Callable> void LoopForever(const char* name,  Callable func, int64 msecs)
 {
     std::string s = strprintf("bitcoin-%s", name);
@@ -583,7 +487,6 @@ template <typename Callable> void LoopForever(const char* name,  Callable func, 
         PrintException(NULL, name);
     }
 }
-// .. and a wrapper that just calls func once
 template <typename Callable> void TraceThread(const char* name,  Callable func)
 {
     std::string s = strprintf("bitcoin-%s", name);

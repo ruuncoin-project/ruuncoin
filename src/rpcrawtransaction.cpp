@@ -1,7 +1,3 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <boost/assign/list_of.hpp>
 
@@ -18,16 +14,12 @@ using namespace boost;
 using namespace boost::assign;
 using namespace json_spirit;
 
-//
-// Utilities: convert hex-encoded Values
-// (throws error if not hex).
-//
 uint256 ParseHashV(const Value& v, string strName)
 {
     string strHex;
     if (v.type() == str_type)
         strHex = v.get_str();
-    if (!IsHex(strHex)) // Note: IsHex("") is false
+    if (!IsHex(strHex))
         throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be hexadecimal string (not '"+strHex+"')");
     uint256 result;
     result.SetHex(strHex);
@@ -373,27 +365,24 @@ Value signrawtransaction(const Array& params, bool fHelp)
     if (txVariants.empty())
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Missing transaction");
 
-    // mergedTx will end up with all the signatures; it
-    // starts as a clone of the rawtx:
     CTransaction mergedTx(txVariants[0]);
     bool fComplete = true;
 
-    // Fetch previous transactions (inputs):
     CCoinsView viewDummy;
     CCoinsViewCache view(viewDummy);
     {
         LOCK(mempool.cs);
         CCoinsViewCache &viewChain = *pcoinsTip;
         CCoinsViewMemPool viewMempool(viewChain, mempool);
-        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+        view.SetBackend(viewMempool);
 
         BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {
             const uint256& prevHash = txin.prevout.hash;
             CCoins coins;
-            view.GetCoins(prevHash, coins); // this is certainly allowed to fail
+            view.GetCoins(prevHash, coins);
         }
 
-        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
+        view.SetBackend(viewDummy);
     }
 
     bool fGivenKeys = false;
@@ -415,7 +404,6 @@ Value signrawtransaction(const Array& params, bool fHelp)
     else
         EnsureWalletIsUnlocked();
 
-    // Add previous txouts given in the RPC call:
     if (params.size() > 1 && params[1].type() != null_type)
     {
         Array prevTxs = params[1].get_array();
@@ -445,16 +433,13 @@ Value signrawtransaction(const Array& params, bool fHelp)
                         scriptPubKey.ToString();
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
-                // what todo if txid is known, but the actual output isn't?
             }
             if ((unsigned int)nOut >= coins.vout.size())
                 coins.vout.resize(nOut+1);
             coins.vout[nOut].scriptPubKey = scriptPubKey;
-            coins.vout[nOut].nValue = 0; // we don't know the actual output value
+            coins.vout[nOut].nValue = 0;
             view.SetCoins(txid, coins);
 
-            // if redeemScript given and not using the local wallet (private keys
-            // given), add redeemScript to the tempKeystore so it can be signed:
             if (fGivenKeys && scriptPubKey.IsPayToScriptHash())
             {
                 RPCTypeCheck(prevOut, map_list_of("txid", str_type)("vout", int_type)("scriptPubKey", str_type)("redeemScript",str_type));
@@ -492,7 +477,6 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
     bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
 
-    // Sign what we can:
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++)
     {
         CTxIn& txin = mergedTx.vin[i];
@@ -505,11 +489,9 @@ Value signrawtransaction(const Array& params, bool fHelp)
         const CScript& prevPubKey = coins.vout[txin.prevout.n].scriptPubKey;
 
         txin.scriptSig.clear();
-        // Only sign SIGHASH_SINGLE if there's a corresponding output:
         if (!fHashSingle || (i < mergedTx.vout.size()))
             SignSignature(keystore, prevPubKey, mergedTx, i, nHashType);
 
-        // ... and merge in other signatures:
         BOOST_FOREACH(const CTransaction& txv, txVariants)
         {
             txin.scriptSig = CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
@@ -534,7 +516,6 @@ Value sendrawtransaction(const Array& params, bool fHelp)
             "sendrawtransaction <hex string> [allowhighfees=false]\n"
             "Submits raw transaction (serialized, hex-encoded) to local node and network.");
 
-    // parse hex string from parameter
     vector<unsigned char> txData(ParseHexV(params[0], "parameter"));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
@@ -543,7 +524,6 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     if (params.size() > 1)
         fOverrideFees = params[1].get_bool();
 
-    // deserialize binary data stream
     try {
         ssData >> tx;
     }
@@ -558,17 +538,14 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     {
         fHave = view.GetCoins(hashTx, existingCoins);
         if (!fHave) {
-            // push to local node
             CValidationState state;
             if (!tx.AcceptToMemoryPool(state, true, false, NULL, !fOverrideFees))
-                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected"); // TODO: report validation state
+                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
         }
     }
     if (fHave) {
         if (existingCoins.nHeight < 1000000000)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "transaction already in block chain");
-        // Not in block, but already in the memory pool; will drop
-        // through to re-relay it.
     } else {
         SyncWithWallets(hashTx, tx, NULL, true);
     }
@@ -584,12 +561,10 @@ Value getnormalizedtxid(const Array& params, bool fHelp)
             "getnormalizedtxid <hex string>\n"
             "Return the normalized transaction ID.");
 
-    // parse hex string from parameter
     vector<unsigned char> txData(ParseHexV(params[0], "parameter"));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
 
-    // deserialize binary data stream
     try {
         ssData >> tx;
     }

@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "netbase.h"
 #include "util.h"
@@ -12,12 +8,11 @@
 #include <sys/fcntl.h>
 #endif
 
-#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
-#include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 using namespace std;
 
-// Settings
 static proxyType proxyInfo[NET_MAX];
 static proxyType nameproxyInfo;
 static CCriticalSection cs_proxyInfos;
@@ -36,9 +31,8 @@ enum Network ParseNetwork(std::string net) {
 
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
     size_t colon = in.find_last_of(':');
-    // if a : is found, and it either follows a [...], or no other : is in the string, treat it as port separator
     bool fHaveColon = colon != in.npos;
-    bool fBracketed = fHaveColon && (in[0]=='[' && in[colon-1]==']'); // if there is a colon, and in[0]=='[', colon is not 0, so in[colon-1] is safe
+    bool fBracketed = fHaveColon && (in[0]=='[' && in[colon-1]==']');
     bool fMultiColon = fHaveColon && (in.find_last_of(':',colon-1) != in.npos);
     if (fHaveColon && (colon==0 || fBracketed || !fMultiColon)) {
         char *endp = NULL;
@@ -346,7 +340,6 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
 
     if (connect(hSocket, (struct sockaddr*)&sockaddr, len) == SOCKET_ERROR)
     {
-        // WSAEINVAL is here because some legacy version of winsock uses it
         if (WSAGetLastError() == WSAEINPROGRESS || WSAGetLastError() == WSAEWOULDBLOCK || WSAGetLastError() == WSAEINVAL)
         {
             struct timeval timeout;
@@ -399,9 +392,6 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
         }
     }
 
-    // this isn't even strictly necessary
-    // CNode::ConnectNode immediately turns the socket back to non-blocking
-    // but we'll turn it back to blocking just in case
 #ifdef WIN32
     fNonblock = 0;
     if (ioctlsocket(hSocket, FIONBIO, &fNonblock) == SOCKET_ERROR)
@@ -474,17 +464,14 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
 {
     proxyType proxy;
 
-    // no proxy needed
     if (!GetProxy(addrDest.GetNetwork(), proxy))
         return ConnectSocketDirectly(addrDest, hSocketRet, nTimeout);
 
     SOCKET hSocket = INVALID_SOCKET;
 
-    // first connect to proxy server
     if (!ConnectSocketDirectly(proxy.first, hSocket, nTimeout))
         return false;
 
-    // do socks negotiation
     switch (proxy.second) {
     case 4:
         if (!Socks4(addrDest, hSocket))
@@ -675,11 +662,9 @@ bool CNetAddr::IsTor() const
 
 bool CNetAddr::IsLocal() const
 {
-    // IPv4 loopback
    if (IsIPv4() && (GetByte(3) == 127 || GetByte(3) == 0))
        return true;
 
-   // IPv6 loopback (::1/128)
    static const unsigned char pchLocal[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
    if (memcmp(ip, pchLocal, 16) == 0)
        return true;
@@ -695,32 +680,22 @@ bool CNetAddr::IsMulticast() const
 
 bool CNetAddr::IsValid() const
 {
-    // Cleanup 3-byte shifted addresses caused by garbage in size field
-    // of addr messages from versions before 0.2.9 checksum.
-    // Two consecutive addr messages look like this:
-    // header20 vectorlen3 addr26 addr26 addr26 header20 vectorlen3 addr26 addr26 addr26...
-    // so if the first length field is garbled, it reads the second batch
-    // of addr misaligned by 3 bytes.
     if (memcmp(ip, pchIPv4+3, sizeof(pchIPv4)-3) == 0)
         return false;
 
-    // unspecified IPv6 address (::/128)
     unsigned char ipNone[16] = {};
     if (memcmp(ip, ipNone, 16) == 0)
         return false;
 
-    // documentation IPv6 address
     if (IsRFC3849())
         return false;
 
     if (IsIPv4())
     {
-        // INADDR_NONE
         uint32_t ipNone = INADDR_NONE;
         if (memcmp(ip+12, &ipNone, 4) == 0)
             return false;
 
-        // 0
         ipNone = 0;
         if (memcmp(ip+12, &ipNone, 4) == 0)
             return false;
@@ -810,8 +785,6 @@ bool CNetAddr::GetIn6Addr(struct in6_addr* pipv6Addr) const
 }
 #endif
 
-// get canonical identifier of an address' group
-// no two connections will be attempted to addresses with the same group
 std::vector<unsigned char> CNetAddr::GetGroup() const
 {
     std::vector<unsigned char> vchRet;
@@ -819,33 +792,27 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
     int nStartByte = 0;
     int nBits = 16;
 
-    // all local addresses belong to the same group
     if (IsLocal())
     {
         nClass = 255;
         nBits = 0;
     }
 
-    // all unroutable addresses belong to the same group
     if (!IsRoutable())
     {
         nClass = NET_UNROUTABLE;
         nBits = 0;
     }
-    // for IPv4 addresses, '1' + the 16 higher-order bits of the IP
-    // includes mapped IPv4, SIIT translated IPv4, and the well-known prefix
     else if (IsIPv4() || IsRFC6145() || IsRFC6052())
     {
         nClass = NET_IPV4;
         nStartByte = 12;
     }
-    // for 6to4 tunnelled addresses, use the encapsulated IPv4 address
     else if (IsRFC3964())
     {
         nClass = NET_IPV4;
         nStartByte = 2;
     }
-    // for Teredo-tunnelled IPv6 addresses, use the encapsulated IPv4 address
     else if (IsRFC4380())
     {
         vchRet.push_back(NET_IPV4);
@@ -859,10 +826,8 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
         nStartByte = 6;
         nBits = 4;
     }
-    // for he.net, use /36 groups
     else if (GetByte(15) == 0x20 && GetByte(14) == 0x01 && GetByte(13) == 0x04 && GetByte(12) == 0x70)
         nBits = 36;
-    // for the rest of the IPv6 network, use /32 groups
     else
         nBits = 32;
 
@@ -892,8 +857,6 @@ void CNetAddr::print() const
     printf("CNetAddr(%s)\n", ToString().c_str());
 }
 
-// private extensions to enum Network, only returned by GetExtNetwork,
-// and only used in GetReachabilityFrom
 static const int NET_UNKNOWN = NET_MAX + 0;
 static const int NET_TEREDO  = NET_MAX + 1;
 int static GetExtNetwork(const CNetAddr *addr)
@@ -905,7 +868,6 @@ int static GetExtNetwork(const CNetAddr *addr)
     return addr->GetNetwork();
 }
 
-/** Calculates a metric for how reachable (*this) is from a given partner */
 int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
 {
     enum Reachability {
@@ -936,12 +898,12 @@ int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
         default:         return REACH_DEFAULT;
         case NET_TEREDO: return REACH_TEREDO;
         case NET_IPV4:   return REACH_IPV4;
-        case NET_IPV6:   return fTunnel ? REACH_IPV6_WEAK : REACH_IPV6_STRONG; // only prefer giving our IPv6 address if it's not tunnelled
+        case NET_IPV6:   return fTunnel ? REACH_IPV6_WEAK : REACH_IPV6_STRONG;
         }
     case NET_TOR:
         switch(ourNet) {
         default:         return REACH_DEFAULT;
-        case NET_IPV4:   return REACH_IPV4; // Tor users can connect to IPv4 as well
+        case NET_IPV4:   return REACH_IPV4;
         case NET_TOR:    return REACH_PRIVATE;
         }
     case NET_TEREDO:
@@ -959,7 +921,7 @@ int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
         case NET_TEREDO:  return REACH_TEREDO;
         case NET_IPV6:    return REACH_IPV6_WEAK;
         case NET_IPV4:    return REACH_IPV4;
-        case NET_TOR:     return REACH_PRIVATE; // either from Tor, or don't care about our address
+        case NET_TOR:     return REACH_PRIVATE;
         }
     }
 }

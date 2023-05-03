@@ -1,7 +1,3 @@
-// Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "main.h"
 #include "bitcoinrpc.h"
@@ -13,8 +9,6 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
-    // Floating point number that is a multiple of the minimum difficulty,
-    // minimum difficulty = 1.0.
     if (blockindex == NULL)
     {
         if (pindexBest == NULL)
@@ -109,10 +103,9 @@ Value settxfee(const Array& params, bool fHelp)
             "settxfee <amount RUUN/KB>\n"
             "<amount> is a real and is rounded to the nearest 0.00000001 RUUN per KB");
 
-    // Amount
     int64 nAmount = 0;
     if (params[0].get_real() != 0.0)
-        nAmount = AmountFromValue(params[0]);        // rejects 0.0 amounts
+        nAmount = AmountFromValue(params[0]);
 
     nTransactionFee = nAmount;
     return true;
@@ -228,7 +221,7 @@ Value gettxout(const Array& params, bool fHelp)
         CCoinsViewMemPool view(*pcoinsTip, mempool);
         if (!view.GetCoins(hash, coins))
             return Value::null;
-        mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
+        mempool.pruneSpent(hash, coins);
     } else {
         if (!pcoinsTip->GetCoins(hash, coins))
             return Value::null;

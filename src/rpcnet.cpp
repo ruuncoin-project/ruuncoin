@@ -1,6 +1,3 @@
-// Copyright (c) 2009-2014 Bitcoin Developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "net.h"
 #include "bitcoinrpc.h"
@@ -56,9 +53,6 @@ Value getpeerinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("blocksrequested", (boost::int64_t)stats.nBlocksRequested));
         obj.push_back(Pair("conntime", (boost::int64_t)stats.nTimeConnected));
         obj.push_back(Pair("version", stats.nVersion));
-        // Use the sanitized form of subver here, to avoid tricksy remote peers from
-        // corrupting or modifiying the JSON output by putting special characters in
-        // their ver message.
         obj.push_back(Pair("subver", stats.cleanSubVer));
         obj.push_back(Pair("inbound", stats.fInbound));
         obj.push_back(Pair("startingheight", stats.nStartingHeight));

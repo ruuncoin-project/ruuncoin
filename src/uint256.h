@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_UINT256_H
 #define BITCOIN_UINT256_H
 
@@ -20,9 +16,6 @@ inline int Testuint256AdHoc(std::vector<std::string> vArg);
 
 
 
-/** Base class without constructors for uint256 and uint160.
- * This makes the compiler let you use it in a union.
- */
 template<unsigned int BITS>
 class base_uint
 {
@@ -182,7 +175,6 @@ public:
 
     base_uint& operator++()
     {
-        // prefix operator
         int i = 0;
         while (++pn[i] == 0 && i < WIDTH-1)
             i++;
@@ -191,7 +183,6 @@ public:
 
     const base_uint operator++(int)
     {
-        // postfix operator
         const base_uint ret = *this;
         ++(*this);
         return ret;
@@ -199,7 +190,6 @@ public:
 
     base_uint& operator--()
     {
-        // prefix operator
         int i = 0;
         while (--pn[i] == -1 && i < WIDTH-1)
             i++;
@@ -208,7 +198,6 @@ public:
 
     const base_uint operator--(int)
     {
-        // postfix operator
         const base_uint ret = *this;
         --(*this);
         return ret;
@@ -308,15 +297,12 @@ public:
         for (int i = 0; i < WIDTH; i++)
             pn[i] = 0;
 
-        // skip leading spaces
         while (isspace(*psz))
             psz++;
 
-        // skip 0x
         if (psz[0] == '0' && tolower(psz[1]) == 'x')
             psz += 2;
 
-        // hex string to uint
         static const unsigned char phexdigit[256] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0, 0,0xa,0xb,0xc,0xd,0xe,0xf,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0xa,0xb,0xc,0xd,0xe,0xf,0,0,0,0,0,0,0,0,0 };
         const char* pbegin = psz;
         while (phexdigit[(unsigned char)*psz] || *psz == '0')
@@ -375,21 +361,18 @@ public:
         return pn[2*n] | (uint64)pn[2*n+1] << 32;
     }
 
-//    unsigned int GetSerializeSize(int nType=0, int nVersion=PROTOCOL_VERSION) const
     unsigned int GetSerializeSize(int nType, int nVersion) const
     {
         return sizeof(pn);
     }
 
     template<typename Stream>
-//    void Serialize(Stream& s, int nType=0, int nVersion=PROTOCOL_VERSION) const
     void Serialize(Stream& s, int nType, int nVersion) const
     {
         s.write((char*)pn, sizeof(pn));
     }
 
     template<typename Stream>
-//    void Unserialize(Stream& s, int nType=0, int nVersion=PROTOCOL_VERSION)
     void Unserialize(Stream& s, int nType, int nVersion)
     {
         s.read((char*)pn, sizeof(pn));
@@ -406,19 +389,10 @@ typedef base_uint<256> base_uint256;
 
 
 
-//
-// uint160 and uint256 could be implemented as templates, but to keep
-// compile errors and debugging cleaner, they're copy and pasted.
-//
 
 
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// uint160
-//
 
-/** 160-bit unsigned integer */
 class uint160 : public base_uint160
 {
 public:
@@ -528,12 +502,7 @@ inline const uint160 operator-(const uint160& a, const uint160& b)      { return
 
 
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// uint256
-//
 
-/** 256-bit unsigned integer */
 class uint256 : public base_uint256
 {
 public:

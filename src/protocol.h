@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef __cplusplus
 # error This header can only be compiled as C++.
@@ -24,12 +20,6 @@ static inline unsigned short GetDefaultPort(const bool testnet = fTestNet)
 
 extern unsigned char pchMessageStart[4];
 
-/** Message header.
- * (4) message start.
- * (12) command.
- * (4) size.
- * (4) checksum.
- */
 class CMessageHeader
 {
     public:
@@ -47,7 +37,6 @@ class CMessageHeader
              READWRITE(nChecksum);
             )
 
-    // TODO: make private (improves encapsulation)
     public:
         enum {
             MESSAGE_START_SIZE=sizeof(::pchMessageStart),
@@ -65,14 +54,12 @@ class CMessageHeader
         unsigned int nChecksum;
 };
 
-/** nServices flags */
 enum
 {
     NODE_NETWORK = (1 << 0),
     NODE_BLOOM = (1 << 1),
 };
 
-/** A CService with information about it as peer */
 class CAddress : public CService
 {
     public:
@@ -98,18 +85,14 @@ class CAddress : public CService
 
         void print() const;
 
-    // TODO: make private (improves encapsulation)
     public:
         uint64 nServices;
 
-        // disk and network only
         unsigned int nTime;
 
-        // memory only
         int64 nLastTry;
 };
 
-/** inv message data */
 class CInv
 {
     public:
@@ -130,7 +113,6 @@ class CInv
         std::string ToString() const;
         void print() const;
 
-    // TODO: make private (improves encapsulation)
     public:
         int type;
         uint256 hash;
@@ -140,9 +122,7 @@ enum
 {
     MSG_TX = 1,
     MSG_BLOCK,
-    // Nodes may always request a MSG_FILTERED_BLOCK in a getdata, however,
-    // MSG_FILTERED_BLOCK should not appear in any invs except as a part of getdata.
     MSG_FILTERED_BLOCK,
 };
 
-#endif // __INCLUDED_PROTOCOL_H__
+#endif

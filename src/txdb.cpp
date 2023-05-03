@@ -1,7 +1,3 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "txdb.h"
 #include "main.h"
@@ -193,7 +189,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
     ssKeySet << make_pair('b', uint256(0));
     pcursor->Seek(ssKeySet.str());
 
-    // Load mapBlockIndex
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         try {
@@ -207,7 +202,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 CDiskBlockIndex diskindex;
                 ssValue >> diskindex;
 
-                // Construct block index object
                 CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
                 pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
                 pindexNew->nHeight        = diskindex.nHeight;
@@ -222,7 +216,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                // Watch for genesis block
                 if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == hashGenesisBlock)
                     pindexGenesisBlock = pindexNew;
 
@@ -231,7 +224,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
 
                 pcursor->Next();
             } else {
-                break; // if shutdown requested or finished loading block index
+                break;
             }
         } catch (std::exception &e) {
             return error("%s() : deserialize error", __PRETTY_FUNCTION__);
